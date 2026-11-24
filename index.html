@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>钢铁黎明 · 网页即时战略</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0d1117; color:#e6e6e6; font-family:"Microsoft YaHei","PingFang SC",sans-serif; overflow:hidden; }
+  #app { display:flex; flex-direction:column; height:100vh; }
+  #topbar { display:flex; align-items:center; gap:10px; padding:6px 12px; background:#161d27; border-bottom:2px solid #2c3e50; font-size:14px; flex-shrink:0; white-space:nowrap; }
+  #topbar .logo { font-weight:bold; color:#f5c542; letter-spacing:2px; font-size:16px; flex-shrink:0; }
+  #topbar .stat { background:#0d1117; border:1px solid #2c3e50; border-radius:4px; padding:3px 9px; flex-shrink:0; }
+  #topbar .stat b { color:#f5c542; }
+  #topbar .stat.power-low b { color:#ff5a4e; }
+  #topbar button { background:#243447; color:#e6e6e6; border:1px solid #3d5a73; border-radius:4px; padding:4px 10px; cursor:pointer; font-size:14px; flex-shrink:0; }
+  #topbar button:hover { background:#31465e; }
+  #main { display:flex; flex:1; min-height:0; }
+  #gamewrap { position:relative; flex:1; min-width:0; background:#000; }
+  #game { display:block; width:100%; height:100%; cursor:crosshair; }
+  #hint { position:absolute; left:10px; bottom:8px; background:rgba(0,0,0,.65); padding:4px 10px; border-radius:4px; font-size:13px; color:#cfe3ff; pointer-events:none; }
+  #sidebar { width:264px; flex-shrink:0; background:#161d27; border-left:2px solid #2c3e50; padding:8px 10px; overflow-y:auto; }
+  #sidebar h3 { color:#f5c542; font-size:15px; margin:5px 0 4px; border-bottom:1px solid #2c3e50; padding-bottom:3px; }
+  #sidebar h3:first-child { margin-top:0; }
+  #buildBtns, #trainBtns { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+  .btn { display:block; width:100%; text-align:left; background:#243447; border:1px solid #3d5a73; color:#e6e6e6; border-radius:5px; padding:4px 8px; margin:0; cursor:pointer; font-size:14px; }
+  .btn:hover:not(:disabled) { background:#31465e; }
+  .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .btn.active { border-color:#f5c542; background:#3a3220; }
+  .btn .cost { float:right; color:#f5c542; }
+  .btn .sub { display:block; font-size:11px; color:#9fb3c8; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .queuebar { grid-column:1 / -1; height:5px; background:#0d1117; border-radius:3px; margin:1px 0 3px; overflow:hidden; }
+  .queuebar > div { height:100%; background:#f5c542; width:0%; }
+  #info { font-size:13px; line-height:1.6; color:#cfe3ff; }
+  #minimap { display:block; width:240px; height:132px; border:1px solid #3d5a73; background:#12300f; cursor:pointer; }
+  .overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(5,10,18,.88); z-index:10; text-align:center; padding:20px; }
+  .overlay h1 { color:#f5c542; font-size:46px; letter-spacing:8px; margin-bottom:8px; text-shadow:0 0 18px rgba(245,197,66,.5); }
+  .overlay h2 { color:#cfe3ff; font-size:18px; font-weight:normal; margin-bottom:18px; }
+  .overlay p { max-width:640px; line-height:1.9; color:#b9c9dc; font-size:14px; margin-bottom:10px; }
+  .overlay .bigbtn { background:#f5c542; color:#1a1a1a; font-size:20px; font-weight:bold; border:none; border-radius:6px; padding:12px 46px; cursor:pointer; margin-top:14px; }
+  .overlay .bigbtn:hover { background:#ffd95e; }
+  .overlay .keys { font-size:13px; color:#8fa5bb; }
+  #endTitle.win { color:#7ee787; }
+  #endTitle.lose { color:#ff7b72; }
+  #autotest-output { display:none; }
+  #toast { position:absolute; top:52px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.75); color:#ffd95e; padding:6px 16px; border-radius:4px; font-size:14px; display:none; z-index:5; }
+  #alertBanner { position:absolute; top:12px; left:50%; transform:translateX(-50%); background:rgba(60,10,10,.85); color:#ff9d94; padding:6px 16px; border-radius:4px; font-size:14px; font-weight:bold; display:none; z-index:5; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <span class="logo">⚔ 钢铁黎明</span>
+    <span class="stat">💰 资金 <b id="money">1500</b></span>
+    <span class="stat" id="powerStat">⚡ 电力 <b id="power">0 / 0</b></span>
+    <span class="stat">⏱ <b id="clock">00:00</b></span>
+    <span class="stat">🪖 部队 <b id="unitCount">0</b></span>
+    <span class="stat">⚠ 下波进攻 <b id="wave">90</b>秒</span>
+    <span style="flex:1"></span>
+    <button id="btnHelp">❓ 玩法</button>
+    <button id="btnPause">⏸ 暂停</button>
+    <button id="btnMute">🔊 音效开</button>
+    <button id="btnRestart">↻ 重开</button>
+  </div>
+  <div id="main">
+    <div id="gamewrap">
+      <canvas id="game" width="1024" height="640"></canvas>
+      <div id="hint">左键框选部队 · 右键移动 / 攻击 · WASD 或方向键移动视角 · 点小地图快速跳转</div>
+      <div id="toast"></div>
+      <div id="alertBanner"></div>
+      <div class="overlay" id="titleScreen">
+        <h1>钢铁黎明</h1>
+        <h2>网页即时战略 · 建造基地 · 采矿赚钱 · 组建装甲部队 · 摧毁敌方总部</h2>
+        <p>你是蓝隼指挥官，在地图西南角建立基地。派采集车去金矿采矿赚钱，建造发电站、步兵营和战车工厂，
+        训练突击兵和铁牛坦克，框选部队、右键指挥它们进攻。东北角的赤狼军团也在采矿扩军，会定时派部队进攻你的基地。
+        先摧毁敌方指挥总部的一方获胜。</p>
+        <p class="keys">操作：左键点选 / 拖框框选 · 右键移动或攻击目标 · 建造时点建筑按钮再点地图放置<br>
+        快捷键：WASD / 方向键移视角 · Esc 取消放置 · 空格暂停</p>
+        <button class="bigbtn" id="btnStart">▶ 开始战斗</button>
+      </div>
+      <div class="overlay" id="endScreen" style="display:none">
+        <h1 id="endTitle" class="win">胜利！</h1>
+        <h2 id="endText"></h2>
+        <button class="bigbtn" id="btnAgain">↻ 再打一局</button>
+      </div>
+    </div>
+    <div id="sidebar">
+      <h3>🏗 建造建筑</h3>
+      <div id="buildBtns"></div>
+      <h3>🎖 训练部队</h3>
+      <div id="trainBtns"></div>
+      <h3>ℹ 选中信息</h3>
+      <div id="info">未选中任何单位。点选己方单位或建筑查看详情。</div>
+      <h3>🗺 小地图</h3>
+      <canvas id="minimap" width="240" height="132"></canvas>
+      <p style="font-size:12px;color:#8fa5bb;margin-top:6px;line-height:1.5">目标：摧毁敌方指挥总部！</p>
+    </div>
+  </div>
+</div>
+<div id="autotest-output"></div>
+<script>
+'use strict';
+/* ============================================================
+   钢铁黎明 — 网页即时战略（原创内容，玩法致敬经典 RTS）
+   单文件、零外部依赖、Canvas 渲染、WebAudio 合成音效
+   ============================================================ */
+
+// ---------- 工具 ----------
+function mulberry32(seed){ let a = seed >>> 0; return function(){ a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+function dist(x1, y1, x2, y2){ const dx = x2 - x1, dy = y2 - y1; return Math.sqrt(dx * dx + dy * dy); }
+function fmtTime(s){ const m = Math.floor(s / 60), ss = Math.floor(s % 60); return (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss; }
+
+// ---------- 常量 ----------
+const TILE = 32, MAP_W = 60, MAP_H = 40;
+const MAP_PX_W = MAP_W * TILE, MAP_PX_H = MAP_H * TILE;
+const PLAYER = 0, ENEMY = 1;
+const T_GRASS = 0, T_ORE = 1, T_WATER = 2, T_TREE = 3;
+
+// 建筑定义（原创名称）
+const BUILDINGS = {
+  hq:       { name:'指挥总部', cost:0,   power:0,   hp:1600, w:3, h:3, color:'#3a6ea5', dark:'#274b73', desc:'基地核心，被摧毁即战败' },
+  power:    { name:'发电站',   cost:150, power:100, hp:400,  w:2, h:2, color:'#c9a227', dark:'#8a6d15', desc:'提供 100 电力' },
+  barracks: { name:'步兵营',   cost:200, power:-25, hp:600,  w:2, h:2, color:'#4a7c59', dark:'#33573d', desc:'训练突击兵' },
+  factory:  { name:'战车工厂', cost:400, power:-40, hp:800,  w:3, h:2, color:'#5b6b7a', dark:'#3d4954', desc:'生产坦克/采集车' },
+  refinery: { name:'精炼厂',   cost:300, power:-20, hp:700,  w:3, h:2, color:'#a5662f', dark:'#7a4a20', desc:'采集车卸矿石' },
+  turret:   { name:'防御炮塔', cost:250, power:-15, hp:350,  w:1, h:1, color:'#7a4a6b', dark:'#55324a', desc:'自动攻击敌军', dmg:20 },
+};
+// 单位定义（原创名称）
+const UNITS = {
+  infantry:  { name:'突击兵', cost:50,  hp:60,  speed:78, range:130, dmg:8,  rate:0.8, time:3,  radius:7,  color:'#2f7de1', dark:'#1c4f92', trainAt:'barracks' },
+  tank:      { name:'铁牛坦克', cost:300, hp:320, speed:48, range:165, dmg:26, rate:1.4, time:8,  radius:12, color:'#2a5db0', dark:'#1d4178', trainAt:'factory' },
+  harvester: { name:'采集车', cost:500, hp:220, speed:42, range:0,   dmg:0,  rate:0,   time:10, radius:12, color:'#d8a028', dark:'#96700f', trainAt:'factory' },
+};
+const ORE_VALUE = 150;      // 每车矿石价值
+const ORE_PER_TILE = 1200;  // 每格矿石储量
+
+// ---------- 全局状态 ----------
+let terrain = [];       // MAP_H x MAP_W
+let oreLeft = {};       // "x,y" -> 剩余储量
+let buildings = [], units = [], projectiles = [], effects = [], floats = [];
+let nextId = 1;
+let money = 1500, aiMoney = 1500;
+let powerProvided = 0, powerUsed = 0;
+let gameState = 'title'; // title | playing | won | lost
+let paused = false, muted = false, gameSpeed = 1;
+let gameTime = 0, aiTimer = 0, aiWaveTimer = 90, aiWaveNum = 0, aiTrickle = 0;
+let camera = { x: 0, y: MAP_PX_H - 640 };
+let selected = [];          // 选中的己方单位
+let selectedBuilding = null;
+let placement = null;       // { type, x, y, valid }
+let mouse = { x: 0, y: 0, wx: 0, wy: 0, down: false, dragging: false, sx: 0, sy: 0 };
+let keys = {};
+let stats = { trained: 0, harvested: 0, kills: 0, shotsFired: 0 };
+let testErrors = [];
+window.__autotest = null;
+// 调试图柄（供自动化验证读取实时状态）
+window.__game = {
+  get state(){ return { gameState: gameState, money: Math.floor(money), units: units.length, buildings: buildings.length, gameTime: +gameTime.toFixed(1), shotsFired: stats.shotsFired, kills: stats.kills, harvestedTrips: stats.harvested }; },
+};
+window.__debug = {
+  harvester: function(owner){
+    const u = units.find(function(x){ return x.owner === owner && x.type === 'harvester' && !x.dead; });
+    if (!u) return null;
+    return { x: Math.round(u.x), y: Math.round(u.y), state: u.state, load: u.load, oreTile: u.oreTile && u.oreTile.key, detour: !!u.detour };
+  },
+  refinery: function(owner){
+    const b = buildings.find(function(x){ return x.owner === owner && x.type === 'refinery' && !x.dead; });
+    return b ? { x: b.x, y: b.y, w: b.w, h: b.h, cx: b.cx, cy: b.cy, drop: refineryDropPoint(b) } : null;
+  },
+};
+
+window.addEventListener('error', function(e){ testErrors.push(String(e.message || e.error)); });
+
+// ---------- 音效（WebAudio 合成，无外部文件） ----------
+// 只有用户真正操作页面后才解锁音频，避免无手势时反复触发自动播放警告
+let audioCtx = null, audioUnlocked = false;
+function unlockAudio(){ audioUnlocked = true; }
+window.addEventListener('pointerdown', unlockAudio, { once: true });
+window.addEventListener('keydown', unlockAudio, { once: true });
+function ac(){
+  if (muted || !audioUnlocked) return null;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  } catch (e) { return null; }
+}
+function tone(freq, dur, type, vol, slideTo){
+  const ctx = ac(); if (!ctx) return;
+  try {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type || 'square'; o.frequency.setValueAtTime(freq, ctx.currentTime);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, ctx.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.05, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + dur);
+  } catch (e) {}
+}
+function noiseBurst(dur, vol){
+  const ctx = ac(); if (!ctx) return;
+  try {
+    const len = Math.floor(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const g = ctx.createGain(); g.gain.value = vol || 0.12;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900;
+    src.connect(f); f.connect(g); g.connect(ctx.destination); src.start();
+  } catch (e) {}
+}
+const sfx = {
+  click(){ tone(950, 0.05, 'square', 0.04); },
+  select(){ tone(700, 0.06, 'sine', 0.05, 900); },
+  move(){ tone(500, 0.05, 'sine', 0.04, 650); },
+  shoot(){ tone(620, 0.07, 'square', 0.03, 180); },
+  cannon(){ tone(220, 0.14, 'sawtooth', 0.06, 60); },
+  explode(){ noiseBurst(0.45, 0.16); tone(90, 0.4, 'sine', 0.1, 40); },
+  coin(){ tone(880, 0.1, 'sine', 0.06, 1320); },
+  build(){ tone(520, 0.09, 'sine', 0.06); setTimeout(function(){ tone(780, 0.12, 'sine', 0.06); }, 110); },
+  error(){ tone(160, 0.18, 'sawtooth', 0.06); },
+  alarm(){ tone(440, 0.15, 'square', 0.05, 620); setTimeout(function(){ tone(440, 0.15, 'square', 0.05, 620); }, 200); },
+};
+
+// ---------- 地图生成（固定种子，保证每次开局一致） ----------
+function genMap(){
+  const rnd = mulberry32(20261124);
+  terrain = [];
+  for (let y = 0; y < MAP_H; y++){ const row = []; for (let x = 0; x < MAP_W; x++) row.push(T_GRASS); terrain.push(row); }
+  oreLeft = {};
+  function oreField(cx, cy, w, h){
+    for (let y = cy; y < cy + h; y++) for (let x = cx; x < cx + w; x++){
+      if (x < 1 || y < 1 || x >= MAP_W - 1 || y >= MAP_H - 1) continue;
+      if (rnd() < 0.85){ terrain[y][x] = T_ORE; oreLeft[x + ',' + y] = ORE_PER_TILE; }
+    }
+  }
+  oreField(10, 27, 4, 4);   // 玩家矿区
+  oreField(46, 9, 4, 4);    // 敌方矿区
+  oreField(28, 18, 4, 4);   // 中央矿区
+  oreField(20, 8, 4, 3);    // 西北中部矿区
+  oreField(36, 28, 4, 3);   // 东南中部矿区
+  // 湖泊
+  function lake(cx, cy, r){
+    for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++){
+      if (x < 1 || y < 1 || x >= MAP_W - 1 || y >= MAP_H - 1) continue;
+      if (dist(x, y, cx, cy) < r && rnd() < 0.9) terrain[y][x] = T_WATER;
+    }
+  }
+  lake(43, 21, 3);
+  lake(14, 16, 2);
+  // 树木（障碍）
+  let trees = 0;
+  while (trees < 46){
+    const x = 2 + Math.floor(rnd() * (MAP_W - 4)), y = 2 + Math.floor(rnd() * (MAP_H - 4));
+    if (terrain[y][x] !== T_GRASS) continue;
+    if (x < 12 && y > 26) continue;   // 玩家基地附近不清障
+    if (x > 47 && y < 14) continue;   // 敌方基地附近不清障
+    terrain[y][x] = T_TREE; trees++;
+  }
+}
+function tileAt(px, py){
+  const tx = Math.floor(px / TILE), ty = Math.floor(py / TILE);
+  if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return -1;
+  return terrain[ty][tx];
+}
+function buildingAtTile(tx, ty){
+  for (const b of buildings) if (tx >= b.tx && tx < b.tx + b.def.w && ty >= b.ty && ty < b.ty + b.def.h) return b;
+  return null;
+}
+function isTileFree(tx, ty){
+  if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return false;
+  if (terrain[ty][tx] !== T_GRASS) return false;
+  return !buildingAtTile(tx, ty);
+}
+
+// ---------- 实体创建 ----------
+function makeBuilding(type, owner, tx, ty){
+  const def = BUILDINGS[type];
+  const b = {
+    id: nextId++, kind: 'building', type: type, def: def, owner: owner,
+    tx: tx, ty: ty, x: tx * TILE, y: ty * TILE,
+    w: def.w * TILE, h: def.h * TILE,
+    hp: def.hp, maxHp: def.hp, built: type === 'hq' ? 1 : 0.001,
+    queue: [], trainT: 0, cooldown: 0, rally: null, dead: false,
+  };
+  b.cx = b.x + b.w / 2; b.cy = b.y + b.h / 2;
+  buildings.push(b);
+  return b;
+}
+function makeUnit(type, owner, x, y){
+  const def = UNITS[type];
+  const u = {
+    id: nextId++, kind: 'unit', type: type, def: def, owner: owner,
+    x: x, y: y, hp: def.hp, maxHp: def.hp,
+    tx: x, ty: y, target: null, moveTarget: null, attackMove: false,
+    cooldown: 0, angle: owner === PLAYER ? -Math.PI / 2 : Math.PI / 2,
+    state: 'idle', stateT: 0, load: 0, oreTile: null, stuckT: 0, lastX: x, lastY: y,
+    dead: false, selected: false,
+  };
+  units.push(u);
+  return u;
+}
+function spawnBase(owner){
+  const isP = owner === PLAYER;
+  const bx = isP ? 3 : 51, by = isP ? 30 : 4; // 基地锚点（左上格）
+  // 总部 3x3
+  makeBuilding('hq', owner, isP ? 3 : 54, isP ? 33 : 4);
+  // 精炼厂 3x2
+  makeBuilding('refinery', owner, isP ? 7 : 50, isP ? 33 : 4);
+  // 发电站 2x2
+  makeBuilding('power', owner, isP ? 3 : 54, isP ? 30 : 8);
+  // 步兵营 2x2
+  makeBuilding('barracks', owner, isP ? 6 : 50, isP ? 30 : 8);
+  // 敌方多一个战车工厂和炮塔
+  if (!isP){
+    makeBuilding('factory', owner, 46, 7);
+    makeBuilding('turret', owner, 53, 9);
+  }
+  // 初始基地的建筑直接建成可用（开局即投入战斗）
+  for (const b of buildings) b.built = 1;
+  // 采集车：玩家出生在精炼厂东侧（去矿区路线通畅），敌方出生在西侧
+  const ref = buildings.find(function(b){ return b.owner === owner && b.type === 'refinery'; });
+  const hv = makeUnit('harvester', owner, isP ? ref.x + ref.w + 44 : ref.x - 44, isP ? ref.cy : ref.cy);
+  hv.state = 'toOre';
+  // 两名步兵守家
+  makeUnit('infantry', owner, ref.cx - 60, ref.cy + 70);
+  makeUnit('infantry', owner, ref.cx + 60, ref.cy + 70);
+  return hv;
+}
+function resetGame(){
+  genMap();
+  buildings = []; units = []; projectiles = []; effects = []; floats = [];
+  nextId = 1; money = 1500; aiMoney = 1500;
+  gameTime = 0; aiTimer = 0; aiWaveTimer = 90; aiWaveNum = 0; aiTrickle = 0;
+  selected = []; selectedBuilding = null; placement = null;
+  stats = { trained: 0, harvested: 0, kills: 0, shotsFired: 0 };
+  spawnBase(PLAYER);
+  spawnBase(ENEMY);
+  camera.x = 0; camera.y = MAP_PX_H - 640;
+  updatePower();
+  updateUI();
+}
+
+// ---------- 移动与碰撞 ----------
+function pointBlocked(x, y, r, self){
+  const t = tileAt(x, y);
+  if (t === T_WATER || t === T_TREE || t === -1) return true;
+  for (const b of buildings){
+    if (x > b.x - r + 2 && x < b.x + b.w + r - 2 && y > b.y - r + 2 && y < b.y + b.h + r - 2) return true;
+  }
+  return false;
+}
+function tryMove(u, nx, ny, dt){
+  const r = u.def.radius;
+  const ox = u.x, oy = u.y;
+  // 两个轴各自尝试移动，支持真正的斜向行走；一轴被挡时另一轴仍可滑动
+  if (!pointBlocked(nx, u.y, r, u)) u.x = nx;
+  if (!pointBlocked(u.x, ny, r, u)) u.y = ny;
+  if (u.x === ox && u.y === oy){
+    // 两轴都被挡：沿切线滑开
+    const dx = nx - ox, dy = ny - oy;
+    if (!pointBlocked(ox - dy * 0.5, oy + dx * 0.5, r, u)){ u.x = ox - dy * 0.5; u.y = oy + dx * 0.5; }
+    else if (!pointBlocked(ox + dy * 0.5, oy - dx * 0.5, r, u)){ u.x = ox + dy * 0.5; u.y = oy - dx * 0.5; }
+  }
+}
+function separateUnits(dt){
+  for (let i = 0; i < units.length; i++){
+    const a = units[i];
+    for (let j = i + 1; j < units.length; j++){
+      const b = units[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.sqrt(dx * dx + dy * dy), min = a.def.radius + b.def.radius - 2;
+      if (d > 0.01 && d < min){
+        const push = (min - d) / 2, nx = dx / d, ny = dy / d;
+        a.x -= nx * push; a.y -= ny * push;
+        b.x += nx * push; b.y += ny * push;
+      }
+    }
+  }
+}
+function moveToward(u, tx, ty, dt){
+  const d = dist(u.x, u.y, tx, ty);
+  if (d < 4) return true;
+  const sp = u.def.speed * dt;
+  const nx = u.x + (tx - u.x) / d * sp, ny = u.y + (ty - u.y) / d * sp;
+  u.angle = Math.atan2(ty - u.y, tx - u.x);
+  tryMove(u, nx, ny, dt);
+  return d <= sp + 4;
+}
+
+// ---------- 战斗 ----------
+function enemiesOf(owner){ return units.filter(function(u){ return u.owner !== owner && !u.dead; }); }
+function enemyBuildingsOf(owner){ return buildings.filter(function(b){ return b.owner !== owner && !b.dead && b.built >= 1; }); }
+function nearestEnemy(x, y, owner, maxD){
+  let best = null, bd = maxD;
+  for (const u of units){
+    if (u.owner === owner || u.dead) continue;
+    const d = dist(x, y, u.x, u.y);
+    if (d < bd){ bd = d; best = u; }
+  }
+  for (const b of buildings){
+    if (b.owner === owner || b.dead || b.built < 1) continue;
+    const d = dist(x, y, b.cx, b.cy);
+    if (d < bd){ bd = d; best = b; }
+  }
+  return best;
+}
+function fireAt(shooter, target){
+  const sx = shooter.x !== undefined ? shooter.x : shooter.cx;
+  const sy = shooter.y !== undefined ? shooter.y : shooter.cy;
+  const tx = target.x !== undefined ? target.x : target.cx;
+  const ty = target.y !== undefined ? target.y : target.cy;
+  projectiles.push({ x: sx, y: sy, tx: tx, ty: ty, target: target, speed: 520, dmg: shooter.def.dmg, owner: shooter.owner, color: shooter.owner === PLAYER ? '#ffd95e' : '#ff8a7a', kind: shooter.type === 'tank' || shooter.type === 'turret' ? 'shell' : 'bullet' });
+  stats.shotsFired++;
+  // 枪口火光
+  effects.push({ x: sx, y: sy, r: 3, maxR: 11, t: 0, life: 0.12 });
+  if (shooter.type === 'tank' || shooter.type === 'turret') sfx.cannon(); else sfx.shoot();
+}
+function damage(target, dmg, attackerOwner){
+  if (!target || target.dead) return;
+  target.hp -= dmg;
+  if (target.hp <= 0){
+    target.hp = 0; target.dead = true;
+    const ex = target.x !== undefined ? target.x : target.cx;
+    const ey = target.y !== undefined ? target.y : target.cy;
+    effects.push({ x: ex, y: ey, r: 12, maxR: target.kind === 'building' ? 70 : 34, t: 0, life: 0.5 });
+    sfx.explode();
+    if (target.kind === 'building'){
+      if (target.type === 'hq'){
+        if (target.owner === ENEMY) endGame(true); else endGame(false);
+      }
+    } else if (attackerOwner !== undefined && attackerOwner !== target.owner){
+      if (attackerOwner === PLAYER) stats.kills++;
+    }
+  }
+}
+
+// ---------- 采集逻辑 ----------
+function nearestOreTile(x, y){
+  let best = null, bd = 1e9;
+  for (const k in oreLeft){
+    if (oreLeft[k] <= 0) continue;
+    const parts = k.split(','), ox = (+parts[0]) * TILE + TILE / 2, oy = (+parts[1]) * TILE + TILE / 2;
+    const d = dist(x, y, ox, oy);
+    if (d < bd){ bd = d; best = { key: k, x: ox, y: oy }; }
+  }
+  return best;
+}
+function nearestRefinery(owner, x, y){
+  let best = null, bd = 1e9;
+  for (const b of buildings){
+    if (b.owner !== owner || b.type !== 'refinery' || b.dead || b.built < 1) continue;
+    const d = dist(x, y, b.cx, b.cy);
+    if (d < bd){ bd = d; best = b; }
+  }
+  return best;
+}
+function refineryDropPoint(ref){
+  // 卸货点选在精炼厂朝向矿区的一侧，避免采集车被自家建筑挡住绕路
+  const cands = ref.owner === PLAYER
+    ? [ { x: ref.x + ref.w + 30, y: ref.cy }, { x: ref.cx, y: ref.y + ref.h + 30 }, { x: ref.x - 30, y: ref.cy }, { x: ref.cx, y: ref.y - 30 } ]
+    : [ { x: ref.x - 30, y: ref.cy }, { x: ref.cx, y: ref.y + ref.h + 30 }, { x: ref.x + ref.w + 30, y: ref.cy }, { x: ref.cx, y: ref.y - 30 } ];
+  for (const c of cands) if (!pointBlocked(c.x, c.y, 12)) return c;
+  return cands[0];
+}
+// 卡住检测：累计 1 秒内的位移，位移过小才判定为卡住（避免按帧判断误伤慢速单位）
+function stuckCheck(u, dt, threshold){
+  const moved = Math.abs(u.x - u.lastX) + Math.abs(u.y - u.lastY);
+  u.lastX = u.x; u.lastY = u.y;
+  u._stuckDist = (u._stuckDist || 0) + moved;
+  u._stuckTime = (u._stuckTime || 0) + dt;
+  if (u._stuckTime >= 1.0){
+    const stuck = u._stuckDist < (threshold || 8);
+    u._stuckDist = 0; u._stuckTime = 0;
+    return stuck;
+  }
+  return false;
+}
+function harvesterStuckCheck(u, dt, tx, ty){
+  if (stuckCheck(u, dt, 8)){
+    const dx = tx - u.x, dy = ty - u.y, d = Math.hypot(dx, dy) || 1;
+    const s = Math.random() < 0.5 ? 1 : -1;
+    u.detour = { x: u.x + (-dy / d) * 100 * s, y: u.y + (dx / d) * 100 * s, t: 1.2 };
+  }
+  if (u.detour){
+    u.detour.t -= dt;
+    moveToward(u, u.detour.x, u.detour.y, dt);
+    if (u.detour.t <= 0) u.detour = null;
+    return true;
+  }
+  return false;
+}
+function updateHarvester(u, dt){
+  if (u.state === 'move'){
+    if (u.moveTarget && moveToward(u, u.moveTarget.x, u.moveTarget.y, dt)){ u.moveTarget = null; u.state = 'idle'; }
+    return;
+  }
+  if (u.state === 'idle') return;
+  if (u.state === 'toOre'){
+    if (!u.oreTile || (oreLeft[u.oreTile.key] || 0) <= 0){
+      u.oreTile = nearestOreTile(u.x, u.y);
+      if (!u.oreTile){ u.state = 'idle'; return; }
+    }
+    if (!harvesterStuckCheck(u, dt, u.oreTile.x, u.oreTile.y) && moveToward(u, u.oreTile.x, u.oreTile.y, dt)){ u.state = 'harvesting'; u.stateT = 0; }
+  } else if (u.state === 'harvesting'){
+    if (!u.oreTile || (oreLeft[u.oreTile.key] || 0) <= 0){ u.state = 'toOre'; u.oreTile = null; return; }
+    u.stateT += dt;
+    if (Math.random() < dt * 6) effects.push({ x: u.x + (Math.random() - 0.5) * 20, y: u.y - 8, r: 2, maxR: 6, t: 0, life: 0.3 });
+    if (u.stateT >= 2){
+      const take = Math.min(ORE_VALUE, oreLeft[u.oreTile.key] || 0);
+      oreLeft[u.oreTile.key] = (oreLeft[u.oreTile.key] || 0) - take;
+      if (oreLeft[u.oreTile.key] <= 0){ const parts = u.oreTile.key.split(','); terrain[+parts[1]][+parts[0]] = T_GRASS; delete oreLeft[u.oreTile.key]; }
+      u.load = take; u.state = 'toRefinery';
+    }
+  } else if (u.state === 'toRefinery'){
+    const ref = nearestRefinery(u.owner, u.x, u.y);
+    if (!ref){ u.state = 'idle'; return; }
+    const dp = refineryDropPoint(ref);
+    if (!harvesterStuckCheck(u, dt, dp.x, dp.y) && moveToward(u, dp.x, dp.y, dt)){ u.state = 'unloading'; u.stateT = 0; }
+  } else if (u.state === 'unloading'){
+    u.stateT += dt;
+    if (u.stateT >= 1){
+      if (u.owner === PLAYER){ money += u.load; floats.push({ x: u.x, y: u.y - 16, text: '+' + u.load, t: 0, color: '#f5c542' }); sfx.coin(); }
+      else aiMoney += u.load;
+      stats.harvested++;
+      u.load = 0; u.state = 'toOre'; u.oreTile = null;
+    }
+  }
+}
+
+// ---------- 单位行为 ----------
+function updateUnit(u, dt){
+  if (u.dead) return;
+  u.cooldown -= dt;
+  if (u.type === 'harvester'){ updateHarvester(u, dt); return; }
+  // 寻找攻击目标
+  let foe = null;
+  if (u.target && !u.target.dead) foe = u.target;
+  else {
+    u.target = null;
+    foe = nearestEnemy(u.x, u.y, u.owner, u.def.range + 70);
+    if (foe) u.target = foe;
+  }
+  if (foe){
+    const fx = foe.x !== undefined ? foe.x : foe.cx, fy = foe.y !== undefined ? foe.y : foe.cy;
+    const d = dist(u.x, u.y, fx, fy);
+    const reach = u.def.range + (foe.kind === 'building' ? Math.max(foe.w, foe.h) / 2 : foe.def.radius);
+    if (d <= reach){
+      u.angle = Math.atan2(fy - u.y, fx - u.x);
+      if (u.cooldown <= 0){ fireAt(u, foe); u.cooldown = u.def.rate; }
+      return;
+    }
+    if (u.attackMove || u.moveTarget) moveToward(u, fx, fy, dt);
+    return;
+  }
+  if (u.moveTarget){
+    if (moveToward(u, u.moveTarget.x, u.moveTarget.y, dt)){ u.moveTarget = null; u.attackMove = false; }
+  }
+  // 卡住检测：长时间无位移则绕开
+  if ((u.moveTarget || u.target) && stuckCheck(u, dt, 8)){
+    if (u.moveTarget){ const a = Math.random() * Math.PI * 2; u.moveTarget = { x: u.moveTarget.x + Math.cos(a) * 90, y: u.moveTarget.y + Math.sin(a) * 90 }; }
+  }
+}
+function updateTurret(b, dt){
+  if (b.dead || b.built < 1 || b.type !== 'turret') return;
+  b.cooldown -= dt;
+  const foe = nearestEnemy(b.cx, b.cy, b.owner, 230);
+  if (foe && b.cooldown <= 0){ fireAt(b, foe); b.cooldown = 1.0; }
+}
+function updateProjectiles(dt){
+  for (const p of projectiles){
+    if (p.target && !p.target.dead){ p.tx = p.target.x !== undefined ? p.target.x : p.target.cx; p.ty = p.target.y !== undefined ? p.target.y : p.target.cy; }
+    const d = dist(p.x, p.y, p.tx, p.ty);
+    const step = p.speed * dt;
+    if (d <= step + 6){
+      if (p.target && !p.target.dead) damage(p.target, p.dmg, p.owner);
+      effects.push({ x: p.tx, y: p.ty, r: 2, maxR: 10, t: 0, life: 0.18 });
+      p.dead = true;
+    } else {
+      p.x += (p.tx - p.x) / d * step; p.y += (p.ty - p.y) / d * step;
+    }
+  }
+  projectiles = projectiles.filter(function(p){ return !p.dead; });
+}
+
+// ---------- 经济与生产 ----------
+function updatePower(){
+  powerProvided = 0; powerUsed = 0;
+  for (const b of buildings){
+    if (b.dead || b.built < 1 || b.owner !== PLAYER) continue;
+    if (b.def.power > 0) powerProvided += b.def.power;
+    else powerUsed += -b.def.power;
+  }
+}
+function powerRatio(){ return powerUsed <= powerProvided ? 1 : 0.5; }
+function canPlace(type, tx, ty){
+  const def = BUILDINGS[type];
+  for (let y = ty; y < ty + def.h; y++) for (let x = tx; x < tx + def.w; x++) if (!isTileFree(x, y)) return false;
+  return true;
+}
+function placeBuilding(type, tx, ty){
+  const def = BUILDINGS[type];
+  if (money < def.cost){ toast('资金不足！'); sfx.error(); return false; }
+  if (!canPlace(type, tx, ty)){ toast('这里不能建造'); sfx.error(); return false; }
+  money -= def.cost;
+  const b = makeBuilding(type, PLAYER, tx, ty);
+  b.built = 0.001;
+  sfx.build();
+  updatePower(); updateUI();
+  return true;
+}
+function trainUnit(building, type){
+  const def = UNITS[type];
+  if (!building || building.dead || building.built < 1) return false;
+  if (building.owner === PLAYER && money < def.cost){ toast('资金不足！'); sfx.error(); return false; }
+  if (building.owner === ENEMY && aiMoney < def.cost) return false;
+  if (building.queue.length >= 5) return false;
+  if (building.owner === PLAYER) money -= def.cost; else aiMoney -= def.cost;
+  building.queue.push({ type: type, t: 0, total: def.time });
+  updateUI();
+  return true;
+}
+function updateProduction(dt){
+  const ratio = powerRatio();
+  for (const b of buildings){
+    if (b.dead) continue;
+    if (b.built < 1){ b.built = Math.min(1, b.built + dt * 0.25); if (b.built >= 1){ updatePower(); sfx.build(); } continue; }
+    if (b.queue.length){
+      const item = b.queue[0];
+      item.t += dt * ratio;
+      if (item.t >= item.total){
+        b.queue.shift();
+        const def = UNITS[item.type];
+        const sx = b.cx + (Math.random() - 0.5) * 30, sy = b.y + b.h + 26;
+        const u = makeUnit(item.type, b.owner, sx, sy);
+        if (u.type === 'harvester'){ u.state = 'toOre'; }
+        else if (b.owner === ENEMY){ u.moveTarget = { x: 160, y: 1080 }; u.attackMove = false; }
+        if (b.owner === PLAYER){ stats.trained++; sfx.build(); }
+      }
+    }
+  }
+}
+
+// ---------- 敌方 AI ----------
+function aiTick(dt){
+  aiTimer += dt;
+  aiTrickle += dt;
+  if (aiTrickle >= 5){ aiMoney += 30; aiTrickle = 0; }
+  if (aiTimer < 1) return;
+  aiTimer = 0;
+  const aiUnits = units.filter(function(u){ return u.owner === ENEMY && !u.dead && u.type !== 'harvester'; });
+  const aiTanks = aiUnits.filter(function(u){ return u.type === 'tank'; }).length;
+  const aiInf = aiUnits.filter(function(u){ return u.type === 'infantry'; }).length;
+  const fac = buildings.find(function(b){ return b.owner === ENEMY && b.type === 'factory' && !b.dead && b.built >= 1; });
+  const bar = buildings.find(function(b){ return b.owner === ENEMY && b.type === 'barracks' && !b.dead && b.built >= 1; });
+  if (fac && aiTanks < 5 && aiMoney >= 300) trainUnit(fac, 'tank');
+  else if (bar && aiInf < 9 && aiMoney >= 50) trainUnit(bar, 'infantry');
+  // 进攻波次
+  aiWaveTimer -= 1;
+  if (aiWaveTimer <= 0){
+    aiWaveTimer = 75; aiWaveNum++;
+    const hq = buildings.find(function(b){ return b.owner === PLAYER && b.type === 'hq' && !b.dead; });
+    if (hq){
+      const attackers = aiUnits.filter(function(u, i){ return i >= 2; }); // 留 2 个守家
+      for (const u of attackers){ u.moveTarget = { x: hq.cx + (Math.random() - 0.5) * 120, y: hq.cy + (Math.random() - 0.5) * 120 }; u.attackMove = true; u.target = null; }
+      if (attackers.length){ showAlert('⚠ 敌军第 ' + aiWaveNum + ' 波进攻来袭！'); sfx.alarm(); }
+    }
+  }
+}
+function endGame(won){
+  if (gameState !== 'playing') return;
+  gameState = won ? 'won' : 'lost';
+  const t = document.getElementById('endTitle'), x = document.getElementById('endText');
+  if (won){ t.textContent = '🏆 胜利！'; t.className = 'win'; x.textContent = '敌方指挥总部已被摧毁，蓝隼军团赢得了这场战斗！用时 ' + fmtTime(gameTime) + '，击毁敌军 ' + stats.kills + ' 个单位。'; }
+  else { t.textContent = '💥 战败…'; t.className = 'lose'; x.textContent = '你的指挥总部被摧毁了。调整战术，再打一局吧！'; }
+  document.getElementById('endScreen').style.display = 'flex';
+  if (won) { tone(523, 0.2, 'sine', 0.08); setTimeout(function(){ tone(659, 0.2, 'sine', 0.08); }, 180); setTimeout(function(){ tone(784, 0.35, 'sine', 0.08); }, 360); }
+}
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ el.style.display = 'none'; }, 1800);
+}
+function showAlert(msg){
+  // 警告显示在游戏画面顶部中央，不挤占顶栏
+  const el = document.getElementById('alertBanner');
+  el.textContent = msg; el.style.display = 'block';
+  clearTimeout(showAlert._t);
+  showAlert._t = setTimeout(function(){ el.style.display = 'none'; }, 5000);
+}
+
+// ---------- 输入 ----------
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const minimap = document.getElementById('minimap');
+const mctx = minimap.getContext('2d');
+
+function canvasPos(e){
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+}
+canvas.addEventListener('mousemove', function(e){
+  const p = canvasPos(e);
+  mouse.x = p.x; mouse.y = p.y;
+  mouse.wx = p.x + camera.x; mouse.wy = p.y + camera.y;
+  if (mouse.down && Math.abs(p.x - mouse.sx) + Math.abs(p.y - mouse.sy) > 8) mouse.dragging = true;
+  if (placement){
+    placement.x = Math.floor(mouse.wx / TILE);
+    placement.y = Math.floor(mouse.wy / TILE);
+    placement.valid = canPlace(placement.type, placement.x, placement.y);
+  }
+});
+canvas.addEventListener('mousedown', function(e){
+  if (gameState !== 'playing' || paused) return;
+  const p = canvasPos(e);
+  mouse.down = true; mouse.dragging = false; mouse.sx = p.x; mouse.sy = p.y;
+  if (e.button === 2){ // 右键：移动 / 攻击 / 取消放置
+    if (placement){ placement = null; buildUI(); return; }
+    issueOrder(mouse.wx, mouse.wy);
+  }
+});
+canvas.addEventListener('mouseup', function(e){
+  if (gameState !== 'playing' || paused){ mouse.down = false; return; }
+  const p = canvasPos(e);
+  mouse.down = false;
+  if (e.button !== 0) return;
+  if (mouse.dragging){ selectBox(p.x, p.y); mouse.dragging = false; return; }
+  if (placement){
+    const tx = Math.floor(mouse.wx / TILE), ty = Math.floor(mouse.wy / TILE);
+    if (placeBuilding(placement.type, tx, ty)){
+      if (!keys['shift']) { placement = null; buildUI(); }
+    }
+    return;
+  }
+  clickSelect(mouse.wx, mouse.wy);
+});
+canvas.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+canvas.addEventListener('mouseleave', function(){ mouse.down = false; mouse.dragging = false; });
+
+function issueOrder(wx, wy){
+  if (!selected.length && !selectedBuilding) return;
+  // 点到敌方单位/建筑 → 攻击
+  let target = null;
+  for (const u of units) if (!u.dead && u.owner === ENEMY && dist(wx, wy, u.x, u.y) < u.def.radius + 10){ target = u; break; }
+  if (!target) for (const b of buildings) if (!b.dead && b.owner === ENEMY && wx >= b.x && wx <= b.x + b.w && wy >= b.y && wy <= b.y + b.h){ target = b; break; }
+  if (target){
+    for (const u of selected){ u.target = target; u.moveTarget = { x: target.x !== undefined ? target.x : target.cx, y: target.y !== undefined ? target.y : target.cy }; u.attackMove = true; }
+    sfx.move();
+    return;
+  }
+  for (const u of selected){
+    if (u.type === 'harvester'){
+      // 采集车右键点矿 → 去采矿；点精炼厂 → 去卸货
+      const t = tileAt(wx, wy);
+      if (t === T_ORE){ u.oreTile = { key: Math.floor(wx / TILE) + ',' + Math.floor(wy / TILE), x: Math.floor(wx / TILE) * TILE + 16, y: Math.floor(wy / TILE) * TILE + 16 }; u.state = 'toOre'; u.load = 0; }
+      else { u.moveTarget = { x: wx, y: wy }; u.attackMove = false; u.state = 'move'; }
+    } else {
+      u.moveTarget = { x: wx + (Math.random() - 0.5) * 24, y: wy + (Math.random() - 0.5) * 24 };
+      u.attackMove = true; u.target = null;
+    }
+  }
+  if (selected.length) sfx.move();
+}
+function clickSelect(wx, wy){
+  selected = []; selectedBuilding = null;
+  for (const u of units){
+    if (!u.dead && u.owner === PLAYER && dist(wx, wy, u.x, u.y) < u.def.radius + 8){
+      selected = [u]; u.selected = true; sfx.select(); updateUI(); return;
+    }
+  }
+  for (const b of buildings){
+    if (!b.dead && wx >= b.x && wx <= b.x + b.w && wy >= b.y && wy <= b.y + b.h){
+      selectedBuilding = b; sfx.select(); updateUI(); return;
+    }
+  }
+  updateUI();
+}
+function selectBox(x, y){
+  const x1 = Math.min(mouse.sx, x) + camera.x, y1 = Math.min(mouse.sy, y) + camera.y;
+  const x2 = Math.max(mouse.sx, x) + camera.x, y2 = Math.max(mouse.sy, y) + camera.y;
+  selected = [];
+  for (const u of units){
+    if (!u.dead && u.owner === PLAYER && u.x >= x1 && u.x <= x2 && u.y >= y1 && u.y <= y2) selected.push(u);
+  }
+  if (selected.length) sfx.select();
+  selectedBuilding = null;
+  updateUI();
+}
+window.addEventListener('keydown', function(e){
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === 'Escape'){ placement = null; selected = []; selectedBuilding = null; buildUI(); updateUI(); }
+  if (e.code === 'Space'){ e.preventDefault(); togglePause(); }
+});
+window.addEventListener('keyup', function(e){ keys[e.key.toLowerCase()] = false; });
+minimap.addEventListener('click', function(e){
+  const r = minimap.getBoundingClientRect();
+  const mx = (e.clientX - r.left) / r.width, my = (e.clientY - r.top) / r.height;
+  camera.x = clamp(mx * MAP_PX_W - canvas.width / 2, 0, MAP_PX_W - canvas.width);
+  camera.y = clamp(my * MAP_PX_H - canvas.height / 2, 0, MAP_PX_H - canvas.height);
+});
+
+// ---------- 渲染 ----------
+function drawTerrain(){
+  const x0 = Math.max(0, Math.floor(camera.x / TILE)), y0 = Math.max(0, Math.floor(camera.y / TILE));
+  const x1 = Math.min(MAP_W - 1, Math.ceil((camera.x + canvas.width) / TILE)), y1 = Math.min(MAP_H - 1, Math.ceil((camera.y + canvas.height) / TILE));
+  for (let y = y0; y <= y1; y++){
+    for (let x = x0; x <= x1; x++){
+      const px = x * TILE - camera.x, py = y * TILE - camera.y;
+      const t = terrain[y][x];
+      if (t === T_GRASS){
+        const v = ((x * 7 + y * 13) % 5);
+        ctx.fillStyle = ['#2e5d23', '#2a5520', '#335f26', '#2e5d23', '#315f27'][v];
+        ctx.fillRect(px, py, TILE, TILE);
+      } else if (t === T_ORE){
+        ctx.fillStyle = '#4a3a12'; ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = '#f5c542';
+        ctx.fillRect(px + 6, py + 7, 7, 7); ctx.fillRect(px + 19, py + 6, 6, 6);
+        ctx.fillRect(px + 10, py + 19, 8, 8); ctx.fillRect(px + 22, py + 20, 5, 5);
+        ctx.fillStyle = '#ffe98a'; ctx.fillRect(px + 7, py + 8, 3, 3); ctx.fillRect(px + 11, py + 20, 3, 3);
+      } else if (t === T_WATER){
+        ctx.fillStyle = (Math.floor(gameTime * 2) + x + y) % 2 ? '#1d4e6b' : '#22597a';
+        ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = 'rgba(255,255,255,.15)';
+        ctx.fillRect(px + 4, py + 10 + ((x + y) % 3) * 4, 14, 2);
+      } else if (t === T_TREE){
+        ctx.fillStyle = '#2e5d23'; ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = '#1d4a1e';
+        ctx.beginPath(); ctx.arc(px + 16, py + 16, 13, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2f6b2a';
+        ctx.beginPath(); ctx.arc(px + 13, py + 13, 8, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+}
+function drawBuilding(b){
+  const px = b.x - camera.x, py = b.y - camera.y;
+  if (px + b.w < 0 || py + b.h < 0 || px > canvas.width || py > canvas.height) return;
+  const ownerColor = b.owner === PLAYER ? '#2f7de1' : '#c0392b';
+  // 落地阴影
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.fillRect(px + 5, py + 6, b.w, b.h);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(px + 3, py + 4, b.w, b.h);
+  ctx.fillStyle = b.def.color;
+  ctx.fillRect(px + 2, py + 2, b.w - 4, b.h - 6);
+  ctx.fillStyle = b.def.dark;
+  ctx.fillRect(px + 2, py + 2, b.w - 4, 8);
+  ctx.fillStyle = ownerColor;
+  ctx.fillRect(px + 2, py + b.h - 10, b.w - 4, 5);
+  // 建造进度
+  if (b.built < 1){
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(px, py, b.w, b.h);
+    ctx.fillStyle = '#f5c542'; ctx.fillRect(px + 4, py + b.h / 2 - 4, (b.w - 8) * b.built, 8);
+  }
+  // 类型标识
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+  const label = { hq:'总部', power:'发电', barracks:'兵营', factory:'工厂', refinery:'精炼', turret:'炮塔' }[b.type];
+  ctx.fillText(label, px + b.w / 2, py + b.h / 2 + 4);
+  // 炮塔炮管
+  if (b.type === 'turret' && b.built >= 1){
+    ctx.strokeStyle = '#ddd'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(px + b.w / 2, py + b.h / 2); ctx.lineTo(px + b.w / 2 + 12, py + b.h / 2 - 12); ctx.stroke();
+  }
+  // 血条
+  if (b.hp < b.maxHp){
+    ctx.fillStyle = '#000'; ctx.fillRect(px, py - 7, b.w, 5);
+    ctx.fillStyle = b.hp / b.maxHp > 0.5 ? '#7ee787' : '#ff7b72';
+    ctx.fillRect(px + 1, py - 6, (b.w - 2) * (b.hp / b.maxHp), 3);
+  }
+  if (selectedBuilding === b){
+    ctx.strokeStyle = '#f5c542'; ctx.lineWidth = 2;
+    ctx.strokeRect(px - 2, py - 2, b.w + 4, b.h + 4);
+  }
+}
+function drawUnit(u){
+  const px = u.x - camera.x, py = u.y - camera.y;
+  if (px < -30 || py < -30 || px > canvas.width + 30 || py > canvas.height + 30) return;
+  ctx.save();
+  ctx.translate(px, py);
+  // 落地阴影
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.beginPath(); ctx.ellipse(2, u.def.radius * 0.7, u.def.radius, u.def.radius * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+  // 阵营色环：蓝=我方，红=敌方，一眼区分
+  ctx.strokeStyle = u.owner === PLAYER ? '#4da3ff' : '#ff6b5e'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, u.def.radius + 2, 0, Math.PI * 2); ctx.stroke();
+  if (u.type === 'infantry'){
+    ctx.fillStyle = u.def.dark;
+    ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = u.def.color;
+    ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(Math.cos(u.angle) * 3, Math.sin(u.angle) * 3, 2.5, 0, Math.PI * 2); ctx.fill();
+  } else if (u.type === 'tank'){
+    ctx.rotate(u.angle);
+    ctx.fillStyle = u.def.dark; ctx.fillRect(-12, -9, 24, 18);
+    ctx.fillStyle = u.def.color; ctx.fillRect(-10, -7, 20, 14);
+    ctx.fillStyle = '#888'; ctx.fillRect(-9, -2, 4, 4); ctx.fillRect(5, -2, 4, 4);
+    ctx.fillStyle = '#222'; ctx.fillRect(6, -1.5, 12, 3);
+    ctx.fillStyle = u.def.color; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+  } else if (u.type === 'harvester'){
+    ctx.rotate(u.angle);
+    ctx.fillStyle = u.def.dark; ctx.fillRect(-13, -9, 26, 18);
+    ctx.fillStyle = u.def.color; ctx.fillRect(-13, -9, 26, 18);
+    ctx.fillStyle = '#3a2f10'; ctx.fillRect(4, -7, 8, 14);
+    ctx.fillStyle = u.load > 0 ? '#f5c542' : '#6b5a1a'; ctx.fillRect(-11, -6, 12, 12);
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-8, -11, 3, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(8, -11, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-8, 11, 3, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(8, 11, 3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+  // 选中圈
+  if (selected.indexOf(u) >= 0){
+    ctx.strokeStyle = '#7ee787'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py, u.def.radius + 4, 0, Math.PI * 2); ctx.stroke();
+  }
+  // 血条
+  if (u.hp < u.maxHp || selected.indexOf(u) >= 0){
+    const w = 26;
+    ctx.fillStyle = '#000'; ctx.fillRect(px - w / 2, py - u.def.radius - 10, w, 4);
+    ctx.fillStyle = u.owner === PLAYER ? '#7ee787' : '#ff7b72';
+    ctx.fillRect(px - w / 2 + 1, py - u.def.radius - 9, (w - 2) * (u.hp / u.maxHp), 2);
+  }
+}
+function drawPlacement(){
+  if (!placement) return;
+  const px = placement.x * TILE - camera.x, py = placement.y * TILE - camera.y;
+  const def = BUILDINGS[placement.type];
+  ctx.fillStyle = placement.valid ? 'rgba(126,231,135,.45)' : 'rgba(255,123,114,.45)';
+  ctx.fillRect(px, py, def.w * TILE, def.h * TILE);
+  ctx.strokeStyle = placement.valid ? '#7ee787' : '#ff7b72'; ctx.lineWidth = 2;
+  ctx.strokeRect(px, py, def.w * TILE, def.h * TILE);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(def.name + '  $' + def.cost, px + def.w * TILE / 2, py - 6);
+}
+function drawEffects(){
+  for (const e of effects){
+    const a = 1 - e.t / e.life;
+    ctx.fillStyle = 'rgba(255,' + Math.floor(180 * a + 40) + ',40,' + a + ')';
+    ctx.beginPath(); ctx.arc(e.x - camera.x, e.y - camera.y, e.r + (e.maxR - e.r) * (e.t / e.life), 0, Math.PI * 2); ctx.fill();
+  }
+  for (const p of projectiles){
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x - camera.x, p.y - camera.y, p.kind === 'shell' ? 4 : 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
+  for (const f of floats){
+    ctx.fillStyle = f.color;
+    ctx.globalAlpha = 1 - f.t / 1.2;
+    ctx.fillText(f.text, f.x - camera.x, f.y - camera.y - f.t * 24);
+    ctx.globalAlpha = 1;
+  }
+  // 框选矩形
+  if (mouse.dragging){
+    ctx.strokeStyle = '#7ee787'; ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(126,231,135,.12)';
+    const x = Math.min(mouse.sx, mouse.x), y = Math.min(mouse.sy, mouse.y);
+    ctx.fillRect(x, y, Math.abs(mouse.x - mouse.sx), Math.abs(mouse.y - mouse.sy));
+    ctx.strokeRect(x, y, Math.abs(mouse.x - mouse.sx), Math.abs(mouse.y - mouse.sy));
+  }
+}
+function drawMinimap(){
+  const mw = minimap.width, mh = minimap.height;
+  mctx.fillStyle = '#12300f'; mctx.fillRect(0, 0, mw, mh);
+  const sx = mw / MAP_PX_W, sy = mh / MAP_PX_H;
+  const tw = mw / MAP_W, th = mh / MAP_H;
+  for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++){
+    const t = terrain[y][x];
+    if (t === T_ORE){ mctx.fillStyle = '#f5c542'; mctx.fillRect(x * tw, y * th, tw, th); }
+    else if (t === T_WATER){ mctx.fillStyle = '#22597a'; mctx.fillRect(x * tw, y * th, tw, th); }
+  }
+  for (const b of buildings){
+    if (b.dead) continue;
+    mctx.fillStyle = b.owner === PLAYER ? '#2f7de1' : '#c0392b';
+    mctx.fillRect(b.x * sx - 1, b.y * sy - 1, Math.max(3, b.w * sx), Math.max(3, b.h * sy));
+  }
+  for (const u of units){
+    if (u.dead) continue;
+    mctx.fillStyle = u.owner === PLAYER ? '#7ee787' : '#ff7b72';
+    mctx.fillRect(u.x * sx - 1, u.y * sy - 1, 2, 2);
+  }
+  mctx.strokeStyle = '#fff'; mctx.lineWidth = 1;
+  mctx.strokeRect(camera.x * sx, camera.y * sy, canvas.width * sx, canvas.height * sy);
+}
+function render(){
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawTerrain();
+  for (const b of buildings) if (!b.dead) drawBuilding(b);
+  for (const u of units) if (!u.dead) drawUnit(u);
+  drawEffects();
+  drawPlacement();
+  drawMinimap();
+}
+
+// ---------- UI ----------
+function buildUI(){
+  const bb = document.getElementById('buildBtns');
+  bb.innerHTML = '';
+  ['power', 'barracks', 'factory', 'refinery', 'turret'].forEach(function(type){
+    const def = BUILDINGS[type];
+    const btn = document.createElement('button');
+    btn.className = 'btn' + (placement && placement.type === type ? ' active' : '');
+    btn.innerHTML = def.name + '<span class="cost">$' + def.cost + '</span><span class="sub">' + def.desc + '</span>';
+    btn.disabled = money < def.cost;
+    btn.onclick = function(){
+      if (placement && placement.type === type){ placement = null; }
+      else { placement = { type: type, x: 0, y: 0, valid: false }; sfx.click(); }
+      buildUI();
+    };
+    bb.appendChild(btn);
+  });
+  const tb = document.getElementById('trainBtns');
+  tb.innerHTML = '';
+  Object.keys(UNITS).forEach(function(type){
+    const def = UNITS[type];
+    const prod = buildings.find(function(b){ return b.owner === PLAYER && b.type === def.trainAt && !b.dead && b.built >= 1; });
+    const prodQ = buildings.filter(function(b){ return b.owner === PLAYER && b.type === def.trainAt && !b.dead; })
+      .reduce(function(n, b){ return n + b.queue.length; }, 0);
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.innerHTML = def.name + '<span class="cost">$' + def.cost + '</span><span class="sub">' + (prod ? BUILDINGS[def.trainAt].name + ' · 队列 ' + prodQ : '需要' + BUILDINGS[def.trainAt].name) + '</span>';
+    btn.disabled = !prod || money < def.cost;
+    btn.onclick = function(){ if (prod && trainUnit(prod, type)) sfx.click(); };
+    tb.appendChild(btn);
+    if (prod && prod.queue.length){
+      const bar = document.createElement('div');
+      bar.className = 'queuebar';
+      const item = prod.queue[0];
+      bar.innerHTML = '<div style="width:' + Math.round(item.t / item.total * 100) + '%"></div>';
+      tb.appendChild(bar);
+    }
+  });
+}
+function updateUI(){
+  document.getElementById('money').textContent = Math.floor(money);
+  document.getElementById('power').textContent = powerUsed + ' / ' + powerProvided;
+  document.getElementById('powerStat').className = 'stat' + (powerUsed > powerProvided ? ' power-low' : '');
+  document.getElementById('clock').textContent = fmtTime(gameTime);
+  document.getElementById('wave').textContent = gameState === 'playing' ? Math.max(0, Math.ceil(aiWaveTimer)) : '—';
+  document.getElementById('unitCount').textContent = units.filter(function(u){ return u.owner === PLAYER && !u.dead; }).length;
+  // 选中信息
+  const info = document.getElementById('info');
+  if (selectedBuilding){
+    const b = selectedBuilding;
+    let html = '<b>' + b.def.name + '</b>（' + (b.owner === PLAYER ? '我方' : '敌方') + '）<br>生命 ' + Math.ceil(b.hp) + ' / ' + b.maxHp;
+    if (b.built < 1) html += '<br>建造中 ' + Math.round(b.built * 100) + '%';
+    if (b.queue.length){
+      const item = b.queue[0];
+      html += '<br>生产中：' + UNITS[item.type].name + ' ' + Math.round(item.t / item.total * 100) + '%（队列 ' + b.queue.length + '）';
+    }
+    info.innerHTML = html;
+  } else if (selected.length === 1){
+    const u = selected[0];
+    info.innerHTML = '<b>' + u.def.name + '</b><br>生命 ' + Math.ceil(u.hp) + ' / ' + u.maxHp +
+      '<br>攻击 ' + u.def.dmg + ' · 射程 ' + u.def.range +
+      (u.type === 'harvester' ? '<br>状态：' + ({ toOre:'前往矿区', harvesting:'采矿中', toRefinery:'返回精炼厂', unloading:'卸货中', idle:'待命', move:'移动中' }[u.state] || u.state) + ' · 载货 ' + u.load : '');
+  } else if (selected.length > 1){
+    info.innerHTML = '已选中 ' + selected.length + ' 个单位<br>右键点击地图指挥移动 / 攻击';
+  } else {
+    info.innerHTML = '未选中任何单位。点选己方单位或建筑查看详情。';
+  }
+  buildUI();
+}
+function togglePause(){
+  if (gameState !== 'playing') return;
+  paused = !paused;
+  document.getElementById('btnPause').textContent = paused ? '▶ 继续' : '⏸ 暂停';
+}
+document.getElementById('btnPause').onclick = togglePause;
+document.getElementById('btnMute').onclick = function(){
+  muted = !muted;
+  this.textContent = muted ? '🔇 音效关' : '🔊 音效开';
+};
+document.getElementById('btnRestart').onclick = function(){ location.reload(); };
+document.getElementById('btnStart').onclick = function(){
+  document.getElementById('titleScreen').style.display = 'none';
+  if (gameState === 'playing'){
+    // 从玩法说明返回对局
+    paused = false;
+    document.getElementById('btnPause').textContent = '⏸ 暂停';
+  } else {
+    startGame();
+  }
+};
+document.getElementById('btnHelp').onclick = function(){
+  if (gameState !== 'playing') return;
+  paused = true;
+  document.getElementById('btnPause').textContent = '▶ 继续';
+  document.getElementById('btnStart').textContent = '▶ 继续战斗';
+  document.getElementById('titleScreen').style.display = 'flex';
+};
+document.getElementById('btnAgain').onclick = function(){ location.reload(); };
+function startGame(){
+  resetGame();
+  gameState = 'playing';
+  showAlert('第一波敌军进攻约在 90 秒后到来，先采矿扩军！');
+  sfx.build();
+}
+
+// ---------- 主循环 ----------
+let lastT = 0, uiTimer = 0;
+function update(dt){
+  gameTime += dt;
+  // 视角移动
+  const camSp = 520 * dt;
+  if (keys['w'] || keys['arrowup']) camera.y -= camSp;
+  if (keys['s'] || keys['arrowdown']) camera.y += camSp;
+  if (keys['a'] || keys['arrowleft']) camera.x -= camSp;
+  if (keys['d'] || keys['arrowright']) camera.x += camSp;
+  camera.x = clamp(camera.x, 0, MAP_PX_W - canvas.width);
+  camera.y = clamp(camera.y, 0, MAP_PX_H - canvas.height);
+  // 实体更新
+  for (const u of units) updateUnit(u, dt);
+  separateUnits(dt);
+  for (const b of buildings) updateTurret(b, dt);
+  updateProjectiles(dt);
+  updateProduction(dt);
+  aiTick(dt);
+  // 清理
+  units = units.filter(function(u){ return !u.dead; });
+  buildings = buildings.filter(function(b){ return !b.dead; });
+  for (const e of effects) e.t += dt;
+  effects = effects.filter(function(e){ return e.t < e.life; });
+  for (const f of floats) f.t += dt;
+  floats = floats.filter(function(f){ return f.t < 1.2; });
+  // 选中单位死亡后清理
+  selected = selected.filter(function(u){ return !u.dead; });
+  if (selectedBuilding && selectedBuilding.dead) selectedBuilding = null;
+  uiTimer += dt;
+  if (uiTimer > 0.25){ uiTimer = 0; updateUI(); }
+}
+function loop(ts){
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (ts - lastT) / 1000 || 0.016) * gameSpeed;
+  lastT = ts;
+  if (gameState === 'playing' && !paused) update(dt);
+  render();
+}
+
+// ---------- 自动测试与截图模式 ----------
+const params = new URLSearchParams(location.search);
+function autotestLog(step, data){
+  if (!window.__autotest) window.__autotest = { steps: [], errors: testErrors };
+  window.__autotest.steps.push(Object.assign({ step: step, t: +gameTime.toFixed(1) }, data || {}));
+  const el = document.getElementById('autotest-output');
+  el.textContent = JSON.stringify(window.__autotest);
+}
+function runAutotest(){
+  window.__autotest = { steps: [], errors: testErrors };
+  setTimeout(function(){
+    try {
+      startGame();
+      autotestLog('game_started', { money: money, buildings: buildings.length, units: units.length });
+      const bar = buildings.find(function(b){ return b.owner === PLAYER && b.type === 'barracks'; });
+      const okTrain = bar ? trainUnit(bar, 'infantry') : false;
+      autotestLog('train_infantry', { ok: okTrain, queue: bar ? bar.queue.length : -1 });
+      const hv = units.find(function(u){ return u.owner === PLAYER && u.type === 'harvester'; });
+      autotestLog('harvester_state', { state: hv ? hv.state : 'none' });
+    } catch (e){ testErrors.push('autotest:' + e.message); }
+  }, 400);
+  setTimeout(function(){
+    try {
+      const moneyBefore = money;
+      const hv = units.find(function(u){ return u.owner === PLAYER && u.type === 'harvester'; });
+      // 加速验证采矿：把采集车放到矿上并完成一次装载
+      const ore = nearestOreTile(400, 900);
+      if (hv && ore){ hv.x = ore.x; hv.y = ore.y; hv.oreTile = ore; hv.state = 'harvesting'; hv.stateT = 1.9; }
+      autotestLog('harvester_forced', { moneyBefore: moneyBefore });
+    } catch (e){ testErrors.push('autotest2:' + e.message); }
+  }, 2500);
+  setTimeout(function(){
+    try {
+      // 派一队敌军到玩家基地附近，验证战斗
+      const hq = buildings.find(function(b){ return b.owner === PLAYER && b.type === 'hq'; });
+      for (let i = 0; i < 3; i++){
+        const e = makeUnit('infantry', ENEMY, hq.cx + 260 + i * 30, hq.cy - 60);
+        e.moveTarget = { x: hq.cx, y: hq.cy }; e.attackMove = true;
+      }
+      autotestLog('enemy_spawned_for_combat', { enemyUnits: units.filter(function(u){ return u.owner === ENEMY; }).length });
+    } catch (e){ testErrors.push('autotest3:' + e.message); }
+  }, 11000);
+  setTimeout(function(){
+    try {
+      const hv = units.find(function(u){ return u.owner === PLAYER && u.type === 'harvester'; });
+      const inf = units.filter(function(u){ return u.owner === PLAYER && u.type === 'infantry'; }).length;
+      autotestLog('final', {
+        money: Math.floor(money), gameState: gameState,
+        harvesterState: hv ? hv.state : 'none', harvesterLoad: hv ? hv.load : -1,
+        playerInfantry: inf, trained: stats.trained, harvestedTrips: stats.harvested,
+        shotsFired: stats.shotsFired, kills: stats.kills,
+        buildings: buildings.length, units: units.length,
+        errors: testErrors.length,
+      });
+      document.title = '自动测试完成';
+    } catch (e){ testErrors.push('autotest4:' + e.message); }
+  }, 18000);
+}
+function runShotMode(mode){
+  document.getElementById('titleScreen').style.display = 'none';
+  startGame();
+  if (mode === 'base'){
+    camera.x = 0; camera.y = MAP_PX_H - 640;
+    setTimeout(function(){ document.title = '截图就绪'; }, 1200);
+  } else if (mode === 'mining'){
+    const hv = units.find(function(u){ return u.owner === PLAYER && u.type === 'harvester'; });
+    const ore = nearestOreTile(400, 900);
+    if (hv && ore){ hv.x = ore.x; hv.y = ore.y; hv.oreTile = ore; hv.state = 'harvesting'; hv.stateT = 1.0; }
+    const bar = buildings.find(function(b){ return b.owner === PLAYER && b.type === 'barracks'; });
+    if (bar) trainUnit(bar, 'infantry');
+    camera.x = 0; camera.y = MAP_PX_H - 640;
+    setTimeout(function(){ document.title = '截图就绪'; }, 2500);
+  } else if (mode === 'battle'){
+    // 中央摆开阵势：玩家坦克 vs 敌军坦克+步兵
+    for (let i = 0; i < 4; i++){
+      const t = makeUnit('tank', PLAYER, 850 + (i % 2) * 50, 560 + Math.floor(i / 2) * 50);
+      t.moveTarget = { x: 1000, y: 640 }; t.attackMove = true;
+    }
+    for (let i = 0; i < 3; i++){
+      const t = makeUnit('tank', ENEMY, 1000 + (i % 2) * 50, 600 + Math.floor(i / 2) * 50);
+      t.moveTarget = { x: 880, y: 600 }; t.attackMove = true;
+    }
+    for (let i = 0; i < 4; i++){
+      const s = makeUnit('infantry', ENEMY, 980 + i * 26, 700);
+      s.moveTarget = { x: 880, y: 620 }; s.attackMove = true;
+    }
+    for (let i = 0; i < 2; i++){
+      const s = makeUnit('infantry', PLAYER, 820 + i * 26, 660);
+      s.moveTarget = { x: 1000, y: 640 }; s.attackMove = true;
+    }
+    camera.x = clamp(960 - canvas.width / 2, 0, MAP_PX_W - canvas.width);
+    camera.y = clamp(640 - canvas.height / 2, 0, MAP_PX_H - canvas.height);
+    setTimeout(function(){ document.title = '截图就绪'; }, 3500);
+  }
+}
+
+// ---------- 启动 ----------
+resetGame();
+gameState = 'title';
+render();
+requestAnimationFrame(loop);
+if (params.get('autotest')) runAutotest();
+else if (params.get('shot')) runShotMode(params.get('shot'));
+</script>
+</body>
+</html>
