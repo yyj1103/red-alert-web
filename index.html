@@ -18,7 +18,7 @@
   #topbar button:hover { background:linear-gradient(#5a6069, #34383f); border-color:#ffd94a; }
   #topbar button:active { border-color:#14161a #8a8f97 #8a8f97 #14161a; }
   #topbar button.active { border-color:#f5c542; background:#3a3220; color:#ffd95e; }
-  #btnBoxSelect { display:none; }
+  #btnBoxSelect, #btnSelectAll { display:none; }
   #main { display:flex; flex:1; min-height:0; }
   #gamewrap { position:relative; flex:1; min-width:0; background:#000; }
   #game { display:block; width:100%; height:100%; cursor:crosshair; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
@@ -74,12 +74,12 @@
     #topbar::-webkit-scrollbar { display:none; }
     #topbar .logo { font-size:15px; letter-spacing:1px; order:0; }
     #topbar .spacer { display:none; }
-    #btnBoxSelect { order:1; }
+    #btnBoxSelect, #btnSelectAll { order:1; }
     #topbar .stat { order:2; }
-    #topbar button:not(#btnBoxSelect) { order:3; }
+    #topbar button:not(#btnBoxSelect):not(#btnSelectAll) { order:3; }
     #topbar .stat { padding:5px 8px; }
     #topbar button { padding:9px 13px; font-size:15px; min-height:44px; }
-    #btnBoxSelect { display:block; }
+    #btnBoxSelect, #btnSelectAll { display:block; }
     #main { flex-direction:column; }
     #gamewrap { flex:1; min-height:0; }
     #hint { font-size:12px; left:6px; bottom:6px; max-width:62%; }
@@ -140,6 +140,7 @@
     <span class="stat">⚠ 下波进攻 <b id="wave">180</b>秒</span>
     <span class="spacer" style="flex:1"></span>
     <button id="btnBoxSelect">▣ 框选</button>
+    <button id="btnSelectAll">⚔ 全选</button>
     <button id="btnHelp">❓ 玩法</button>
     <button id="btnPause">⏸ 暂停</button>
     <button id="btnMute">🔊 音效开</button>
@@ -1059,6 +1060,17 @@ function setBoxSelectMode(on){
 }
 document.getElementById('btnBoxSelect').onclick = function(){
   setBoxSelectMode(!boxSelectMode);
+  sfx.click();
+};
+document.getElementById('btnSelectAll').onclick = function(){
+  // 一键全选：选中所有存活的己方战斗单位（突击兵 + 铁牛坦克）；采集车不选，继续采矿
+  selected = [];
+  for (const u of units){
+    if (!u.dead && u.owner === PLAYER && u.type !== 'harvester') selected.push(u);
+  }
+  selectedBuilding = null;
+  if (selected.length) sfx.select();
+  updateUI();
   sfx.click();
 };
 function tapSelect(wx, wy){
