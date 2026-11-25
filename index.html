@@ -47,6 +47,12 @@
   .overlay .bigbtn:hover { background:linear-gradient(#fff3b0, #ffd95e 55%, #d8b23a); }
   .overlay .bigbtn:active { transform:translateY(3px); box-shadow:0 1px 0 #5a4400; }
   .overlay .keys { font-size:13px; color:#8fa5bb; }
+  #diffRow { margin-top:6px; }
+  #diffRow .diffLabel { color:#cfe3ff; font-size:15px; font-weight:bold; margin-bottom:8px; }
+  #diffRow .diffBtns { display:flex; gap:10px; justify-content:center; }
+  #diffRow .diffBtn { background:linear-gradient(#3d4148, #26292e); color:#e8e8e8; border:2px solid; border-color:#7a7f87 #14161a #14161a #7a7f87; border-radius:4px; padding:10px 26px; font-size:16px; cursor:pointer; min-height:48px; }
+  #diffRow .diffBtn.sel { border-color:#ffd94a; background:linear-gradient(#4a3a10, #2a2208); color:#ffd94a; font-weight:bold; }
+  #diffRow #diffDesc { color:#8fa5bb; font-size:13px; margin-top:8px; min-height:18px; }
   #endTitle.win { color:#7ee787; }
   #endTitle.lose { color:#ff7b72; }
   #autotest-output { display:none; }
@@ -81,11 +87,29 @@
     .overlay p { font-size:13px; line-height:1.7; }
     .overlay .bigbtn { font-size:18px; padding:14px 40px; min-height:52px; }
   }
-  /* 横屏手机：底部栏再压矮一点，多留战场高度 */
+  .overlay { overflow-y:auto; }
+  /* 横屏手机（红警手游式）：右侧边栏，上面小地图、下面建造栏 */
   @media (max-width: 900px) and (orientation: landscape) {
-    #sidebar { height:128px; }
-    #buildBtns .btn, #trainBtns .btn { min-height:46px; }
-    #minimap.mobile-dock { width:110px; height:61px; }
+    #main { flex-direction:row; }
+    #sidebar { width:216px; height:auto; flex:none; border-top:none; border-left:2px solid #8a6d15; padding:6px; overflow-y:auto; display:flex; flex-direction:column; }
+    #sidebar h3 { font-size:14px; margin:4px 0 3px; }
+    #minimapSection { display:block; order:-1; margin-bottom:4px; }
+    #minimapSection h3 { margin:2px 0 4px; }
+    #minimap { width:100%; height:auto; }
+    #buildBtns, #trainBtns { display:block; overflow-x:visible; }
+    #buildBtns .btn, #trainBtns .btn { width:100%; min-width:0; min-height:52px; margin-bottom:6px; }
+    #buildBtns .btn .sub, #trainBtns .btn .sub { font-size:12px; }
+    #info { font-size:12px; }
+    #hint { max-width:48%; }
+    /* 开始画面在矮屏上收紧排版，保证开始按钮点得到 */
+    .overlay { justify-content:flex-start; padding:10px; }
+    .overlay h1 { font-size:26px; letter-spacing:4px; margin-bottom:4px; }
+    .overlay h2 { font-size:13px; margin-bottom:8px; }
+    .overlay p { font-size:12px; line-height:1.6; margin-bottom:6px; }
+    #diffRow .diffLabel { font-size:13px; margin-bottom:6px; }
+    #diffRow .diffBtn { padding:8px 18px; min-height:44px; font-size:14px; }
+    #diffRow #diffDesc { font-size:12px; margin-top:6px; }
+    .overlay .bigbtn { font-size:16px; padding:10px 32px; min-height:48px; margin-top:8px; }
   }
   /* 很窄的竖屏手机：顶栏再精简，隐藏时间与部队数，保证“框选”一眼可见 */
   @media (max-width: 500px) {
@@ -97,16 +121,17 @@
 <div id="app">
   <div id="topbar">
     <span class="logo">⚔ 钢铁黎明</span>
-    <span class="stat">💰 资金 <b id="money">1500</b></span>
+    <span class="stat">💰 资金 <b id="money">2000</b></span>
     <span class="stat" id="powerStat">⚡ 电力 <b id="power">0 / 0</b></span>
     <span class="stat">⏱ <b id="clock">00:00</b></span>
     <span class="stat stat-units">🪖 部队 <b id="unitCount">0</b></span>
-    <span class="stat">⚠ 下波进攻 <b id="wave">90</b>秒</span>
+    <span class="stat">⚠ 下波进攻 <b id="wave">180</b>秒</span>
     <span class="spacer" style="flex:1"></span>
     <button id="btnBoxSelect">▣ 框选</button>
     <button id="btnHelp">❓ 玩法</button>
     <button id="btnPause">⏸ 暂停</button>
     <button id="btnMute">🔊 音效开</button>
+    <button id="btnRain">🌧 雨天开</button>
     <button id="btnRestart">↻ 重开</button>
   </div>
   <div id="main">
@@ -123,6 +148,15 @@
         先摧毁敌方指挥总部的一方获胜。</p>
         <p class="keys">操作：左键点选 / 拖框框选 · 右键移动或攻击目标 · 建造时点建筑按钮再点地图放置<br>
         快捷键：WASD / 方向键移视角 · Esc 取消放置 · 空格暂停</p>
+        <div id="diffRow">
+          <div class="diffLabel">难度选择：</div>
+          <div class="diffBtns">
+            <button class="diffBtn sel" data-diff="easy">简单</button>
+            <button class="diffBtn" data-diff="normal">普通</button>
+            <button class="diffBtn" data-diff="hard">困难</button>
+          </div>
+          <div id="diffDesc">敌军来得慢、数量少，适合新手练手</div>
+        </div>
         <button class="bigbtn" id="btnStart">▶ 开始战斗</button>
       </div>
       <div class="overlay" id="endScreen" style="display:none">
@@ -163,10 +197,10 @@ function dist(x1, y1, x2, y2){ const dx = x2 - x1, dy = y2 - y1; return Math.sqr
 function fmtTime(s){ const m = Math.floor(s / 60), ss = Math.floor(s % 60); return (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss; }
 
 // ---------- 常量 ----------
-const TILE = 32, MAP_W = 60, MAP_H = 40;
+const TILE = 32, MAP_W = 72, MAP_H = 48;
 const MAP_PX_W = MAP_W * TILE, MAP_PX_H = MAP_H * TILE;
 const PLAYER = 0, ENEMY = 1;
-const T_GRASS = 0, T_ORE = 1, T_WATER = 2, T_TREE = 3;
+const T_GRASS = 0, T_ORE = 1, T_WATER = 2, T_TREE = 3, T_ROCK = 4, T_ROAD = 5, T_BRIDGE = 6, T_CITY = 7;
 
 // 建筑定义（原创名称）
 const BUILDINGS = {
@@ -184,6 +218,14 @@ const UNITS = {
   harvester: { name:'采集车', cost:500, hp:220, speed:42, range:0,   dmg:0,  rate:0,   time:10, radius:12, color:'#d8a028', dark:'#96700f', trainAt:'factory' },
 };
 const ORE_VALUE = 150;      // 每车矿石价值
+// ---------- 难度 ----------
+const DIFFICULTY = {
+  easy:   { name:'简单', startMoney:2000, firstWave:180, waveInterval:120, trainMul:0.8, waveCap:[3, 4, 5, 6, 7, 8], tankFromWave:4, keepDefenders:2, desc:'敌军来得慢、数量少，适合新手练手' },
+  normal: { name:'普通', startMoney:1500, firstWave:90,  waveInterval:75,  trainMul:1.0, waveCap:null, tankFromWave:1, keepDefenders:2, desc:'原来的难度：90 秒后来袭，75 秒一波' },
+  hard:   { name:'困难', startMoney:1200, firstWave:60,  waveInterval:60,  trainMul:1.0, waveCap:null, tankFromWave:2, keepDefenders:1, desc:'敌军来得更快、更多，挑战老手' },
+};
+let difficulty = 'easy';
+function diff(){ return DIFFICULTY[difficulty]; }
 const ORE_PER_TILE = 1200;  // 每格矿石储量
 
 // ---------- 全局状态 ----------
@@ -191,11 +233,11 @@ let terrain = [];       // MAP_H x MAP_W
 let oreLeft = {};       // "x,y" -> 剩余储量
 let buildings = [], units = [], projectiles = [], effects = [], floats = [];
 let nextId = 1;
-let money = 1500, aiMoney = 1500;
+let money = 2000, aiMoney = 1500;
 let powerProvided = 0, powerUsed = 0;
 let gameState = 'title'; // title | playing | won | lost
-let paused = false, muted = false, gameSpeed = 1;
-let gameTime = 0, aiTimer = 0, aiWaveTimer = 90, aiWaveNum = 0, aiTrickle = 0;
+let paused = false, muted = false, rain = true, gameSpeed = 1;
+let gameTime = 0, aiTimer = 0, aiWaveTimer = 180, aiWaveNum = 0, aiTrickle = 0;
 let camera = { x: 0, y: MAP_PX_H - 640 };
 let viewW = 1024, viewH = 640;   // 视图宽高（逻辑像素 = CSS 像素 / 缩放倍率），渲染与相机都以它为准
 let zoom = 1;                    // 双指缩放倍率，0.6 ~ 2
@@ -221,9 +263,15 @@ let testErrors = [];
 window.__autotest = null;
 // 调试图柄（供自动化验证读取实时状态）
 window.__game = {
-  get state(){ return { gameState: gameState, money: Math.floor(money), units: units.length, buildings: buildings.length, gameTime: +gameTime.toFixed(1), shotsFired: stats.shotsFired, kills: stats.kills, harvestedTrips: stats.harvested, selected: selected.length, selectedBuilding: selectedBuilding ? selectedBuilding.type : null, camera: { x: Math.round(camera.x), y: Math.round(camera.y) }, zoom: +zoom.toFixed(2), viewW: viewW, viewH: viewH }; },
+  get state(){ return { gameState: gameState, difficulty: difficulty, money: Math.floor(money), units: units.length, buildings: buildings.length, gameTime: +gameTime.toFixed(1), aiWaveNum: aiWaveNum, aiWaveTimer: +aiWaveTimer.toFixed(1), shotsFired: stats.shotsFired, kills: stats.kills, harvestedTrips: stats.harvested, selected: selected.length, selectedBuilding: selectedBuilding ? selectedBuilding.type : null, camera: { x: Math.round(camera.x), y: Math.round(camera.y) }, zoom: +zoom.toFixed(2), viewW: viewW, viewH: viewH }; },
 };
 window.__debug = {
+  // 快进：按 0.05 秒步长直接推进游戏逻辑（仅供自动化验证用）
+  fastForward: function(sec){
+    const steps = Math.round(sec / 0.05);
+    for (let i = 0; i < steps; i++) update(0.05);
+    return { gameTime: +gameTime.toFixed(1), aiWaveNum: aiWaveNum, aiWaveTimer: +aiWaveTimer.toFixed(1) };
+  },
   harvester: function(owner){
     const u = units.find(function(x){ return x.owner === owner && x.type === 'harvester' && !x.dead; });
     if (!u) return null;
@@ -295,35 +343,68 @@ function genMap(){
   terrain = [];
   for (let y = 0; y < MAP_H; y++){ const row = []; for (let x = 0; x < MAP_W; x++) row.push(T_GRASS); terrain.push(row); }
   oreLeft = {};
+  // ---- 城市道路网：对角沥青大道（玩家左下 ↔ 敌方右上）+ 两条街 ----
+  function roadY(x){ return Math.round(38 - (28 / 52) * (x - 10)); } // 主路中心线
+  function setRoad(x, y){ if (x >= 1 && y >= 1 && x < MAP_W - 1 && y < MAP_H - 1 && terrain[y][x] === T_GRASS) terrain[y][x] = T_ROAD; }
+  function nearRoad(x, y, d){
+    if (Math.abs(y - roadY(x)) <= d) return true;                                  // 主路
+    if (x >= 8 - d && x <= 40 + d && Math.abs(y - 30.5) <= d + 0.5) return true;    // 横向大道
+    if (y >= 16 - d && y <= 40 + d && Math.abs(x - 56.5) <= d + 0.5) return true;    // 纵向大道
+    if (x >= 44 - d && x <= 45 + d && y >= 19 - d && y <= 20 + d) return true;      // 桥口
+    return false;
+  }
+  for (let x = 8; x <= 64; x++){ const y = roadY(x); setRoad(x, y); setRoad(x, y + 1); }
+  for (let x = 8; x <= 40; x++){ setRoad(x, 30); setRoad(x, 31); }
+  for (let y = 16; y <= 40; y++){ setRoad(56, y); setRoad(57, y); }
+  // ---- 小河（南北向）+ 木桥（主路穿过处） ----
+  for (let y = 12; y <= 36; y++) for (const x of [44, 45]){
+    if (terrain[y][x] === T_GRASS) terrain[y][x] = T_WATER;
+  }
+  for (const b of [[44, 19], [44, 20], [45, 19], [45, 20]]) terrain[b[1]][b[0]] = T_BRIDGE;
+  // ---- 矿石田：家门口、中央、敌方家门口 + 两处野矿 ----
   function oreField(cx, cy, w, h){
     for (let y = cy; y < cy + h; y++) for (let x = cx; x < cx + w; x++){
       if (x < 1 || y < 1 || x >= MAP_W - 1 || y >= MAP_H - 1) continue;
       if (rnd() < 0.85){ terrain[y][x] = T_ORE; oreLeft[x + ',' + y] = ORE_PER_TILE; }
     }
   }
-  oreField(10, 27, 4, 4);   // 玩家矿区
-  oreField(46, 9, 4, 4);    // 敌方矿区
-  oreField(28, 18, 4, 4);   // 中央矿区
-  oreField(20, 8, 4, 3);    // 西北中部矿区
-  oreField(36, 28, 4, 3);   // 东南中部矿区
-  // 湖泊
-  function lake(cx, cy, r){
+  oreField(11, 41, 4, 4);   // 玩家家门口
+  oreField(53, 13, 4, 4);   // 敌方家门口
+  oreField(30, 20, 5, 4);   // 中央矿区（争夺点）
+  oreField(20, 8, 4, 3);    // 西北野矿
+  oreField(48, 36, 4, 3);   // 东南野矿
+  // ---- 树林片区（成片种，留出道路和基地） ----
+  function forest(cx, cy, r){
     for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++){
-      if (x < 1 || y < 1 || x >= MAP_W - 1 || y >= MAP_H - 1) continue;
-      if (dist(x, y, cx, cy) < r && rnd() < 0.9) terrain[y][x] = T_WATER;
+      if (x < 2 || y < 2 || x >= MAP_W - 2 || y >= MAP_H - 2) continue;
+      if (terrain[y][x] !== T_GRASS) continue;
+      if (nearRoad(x, y, 2)) continue;
+      if (x < 13 && y > 36) continue;   // 玩家基地附近不清障
+      if (x > 56 && y < 14) continue;   // 敌方基地附近不清障
+      if (dist(x, y, cx, cy) <= r && rnd() < 0.75) terrain[y][x] = T_TREE;
     }
   }
-  lake(43, 21, 3);
-  lake(14, 16, 2);
-  // 树木（障碍）
-  let trees = 0;
-  while (trees < 46){
-    const x = 2 + Math.floor(rnd() * (MAP_W - 4)), y = 2 + Math.floor(rnd() * (MAP_H - 4));
-    if (terrain[y][x] !== T_GRASS) continue;
-    if (x < 12 && y > 26) continue;   // 玩家基地附近不清障
-    if (x > 47 && y < 14) continue;   // 敌方基地附近不清障
-    terrain[y][x] = T_TREE; trees++;
+  forest(18, 16, 3); forest(50, 28, 3); forest(26, 34, 3); forest(40, 6, 3); forest(60, 40, 2);
+  // ---- 岩石障碍（小簇） ----
+  function rocks(cx, cy, n){
+    let placed = 0, guard = 0;
+    while (placed < n && guard++ < 40){
+      const x = cx + Math.floor(rnd() * 3) - 1, y = cy + Math.floor(rnd() * 3) - 1;
+      if (x < 2 || y < 2 || x >= MAP_W - 2 || y >= MAP_H - 2) continue;
+      if (terrain[y][x] !== T_GRASS || nearRoad(x, y, 2)) continue;
+      if (x < 13 && y > 36) continue;
+      if (x > 56 && y < 14) continue;
+      terrain[y][x] = T_ROCK; placed++;
+    }
   }
+  rocks(14, 26, 3); rocks(38, 14, 3); rocks(62, 34, 3); rocks(34, 42, 2);
+  // ---- 街边楼群（2x2 街区，挡路的楼房） ----
+  function cityBlock(cx, cy){
+    for (let y = cy; y < cy + 2; y++) for (let x = cx; x < cx + 2; x++){
+      if (terrain[y][x] === T_GRASS) terrain[y][x] = T_CITY;
+    }
+  }
+  cityBlock(16, 20); cityBlock(36, 32); cityBlock(50, 26); cityBlock(24, 12);
 }
 function tileAt(px, py){
   const tx = Math.floor(px / TILE), ty = Math.floor(py / TILE);
@@ -369,19 +450,18 @@ function makeUnit(type, owner, x, y){
 }
 function spawnBase(owner){
   const isP = owner === PLAYER;
-  const bx = isP ? 3 : 51, by = isP ? 30 : 4; // 基地锚点（左上格）
-  // 总部 3x3
-  makeBuilding('hq', owner, isP ? 3 : 54, isP ? 33 : 4);
+  // 总部 3x3：玩家左下角（3,41），敌方右上角（66,4）
+  makeBuilding('hq', owner, isP ? 3 : 66, isP ? 41 : 4);
   // 精炼厂 3x2
-  makeBuilding('refinery', owner, isP ? 7 : 50, isP ? 33 : 4);
+  makeBuilding('refinery', owner, isP ? 7 : 62, isP ? 41 : 4);
   // 发电站 2x2
-  makeBuilding('power', owner, isP ? 3 : 54, isP ? 30 : 8);
+  makeBuilding('power', owner, isP ? 3 : 66, isP ? 38 : 8);
   // 步兵营 2x2
-  makeBuilding('barracks', owner, isP ? 6 : 50, isP ? 30 : 8);
+  makeBuilding('barracks', owner, isP ? 6 : 62, isP ? 38 : 8);
   // 敌方多一个战车工厂和炮塔
   if (!isP){
-    makeBuilding('factory', owner, 46, 7);
-    makeBuilding('turret', owner, 53, 9);
+    makeBuilding('factory', owner, 58, 7);
+    makeBuilding('turret', owner, 65, 9);
   }
   // 初始基地的建筑直接建成可用（开局即投入战斗）
   for (const b of buildings) b.built = 1;
@@ -397,8 +477,8 @@ function spawnBase(owner){
 function resetGame(){
   genMap();
   buildings = []; units = []; projectiles = []; effects = []; floats = [];
-  nextId = 1; money = 1500; aiMoney = 1500;
-  gameTime = 0; aiTimer = 0; aiWaveTimer = 90; aiWaveNum = 0; aiTrickle = 0;
+  nextId = 1; money = diff().startMoney; aiMoney = 1500;
+  gameTime = 0; aiTimer = 0; aiWaveTimer = diff().firstWave; aiWaveNum = 0; aiTrickle = 0;
   selected = []; selectedBuilding = null; placement = null;
   stats = { trained: 0, harvested: 0, kills: 0, shotsFired: 0 };
   spawnBase(PLAYER);
@@ -411,7 +491,8 @@ function resetGame(){
 // ---------- 移动与碰撞 ----------
 function pointBlocked(x, y, r, self){
   const t = tileAt(x, y);
-  if (t === T_WATER || t === T_TREE || t === -1) return true;
+  // 水、树、岩石、楼房挡路；马路和木桥可以走
+  if (t === T_WATER || t === T_TREE || t === T_ROCK || t === T_CITY || t === -1) return true;
   for (const b of buildings){
     if (x > b.x - r + 2 && x < b.x + b.w + r - 2 && y > b.y - r + 2 && y < b.y + b.h + r - 2) return true;
   }
@@ -595,6 +676,57 @@ function updateHarvester(u, dt){
   }
 }
 
+// ---------- 寻路（网格 BFS，绕开水、树、岩石、楼房和建筑） ----------
+function tileBlockedForPath(tx, ty){
+  if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return true;
+  const t = terrain[ty][tx];
+  if (t === T_WATER || t === T_TREE || t === T_ROCK || t === T_CITY) return true;
+  return !!buildingAtTile(tx, ty);
+}
+function nearestPassableTile(tx, ty){
+  if (!tileBlockedForPath(tx, ty)) return { x: tx, y: ty };
+  for (let r = 1; r <= 8; r++){
+    for (let y = ty - r; y <= ty + r; y++) for (let x = tx - r; x <= tx + r; x++){
+      if (Math.max(Math.abs(x - tx), Math.abs(y - ty)) !== r) continue;
+      if (!tileBlockedForPath(x, y)) return { x: x, y: y };
+    }
+  }
+  return null;
+}
+function findPath(sx, sy, tx, ty){
+  const start = { x: Math.floor(sx / TILE), y: Math.floor(sy / TILE) };
+  const goal = nearestPassableTile(Math.floor(tx / TILE), Math.floor(ty / TILE));
+  if (!goal) return null;
+  if (start.x === goal.x && start.y === goal.y) return [{ x: goal.x * TILE + TILE / 2, y: goal.y * TILE + TILE / 2 }];
+  const key = function(x, y){ return x + ',' + y; };
+  const prev = new Map(), seen = new Set([key(start.x, start.y)]);
+  const queue = [start];
+  let found = false;
+  while (queue.length){
+    const cur = queue.shift();
+    if (cur.x === goal.x && cur.y === goal.y){ found = true; break; }
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){
+      if (!dx && !dy) continue;
+      const nx = cur.x + dx, ny = cur.y + dy;
+      if (tileBlockedForPath(nx, ny) || seen.has(key(nx, ny))) continue;
+      // 斜向移动不能穿墙角
+      if (dx && dy && (tileBlockedForPath(cur.x + dx, cur.y) || tileBlockedForPath(cur.x, cur.y + dy))) continue;
+      seen.add(key(nx, ny));
+      prev.set(key(nx, ny), cur);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  if (!found) return null;
+  const cells = [];
+  let cur = goal;
+  while (!(cur.x === start.x && cur.y === start.y)){
+    cells.unshift(cur);
+    cur = prev.get(key(cur.x, cur.y));
+    if (!cur) return null;
+  }
+  return cells.map(function(c){ return { x: c.x * TILE + TILE / 2, y: c.y * TILE + TILE / 2 }; });
+}
+
 // ---------- 单位行为 ----------
 function updateUnit(u, dt){
   if (u.dead) return;
@@ -621,12 +753,59 @@ function updateUnit(u, dt){
     return;
   }
   if (u.moveTarget){
-    if (moveToward(u, u.moveTarget.x, u.moveTarget.y, dt)){ u.moveTarget = null; u.attackMove = false; }
+    // 沿寻路点走，绕开障碍；目标变了就重新寻路
+    if (!u.path || u.pathTx !== u.moveTarget.x || u.pathTy !== u.moveTarget.y){
+      u.path = findPath(u.x, u.y, u.moveTarget.x, u.moveTarget.y);
+      u.pathTx = u.moveTarget.x; u.pathTy = u.moveTarget.y;
+    }
+    if (u.path && u.path.length){
+      const wp = u.path[0];
+      if (moveToward(u, wp.x, wp.y, dt)){ u.path.shift(); }
+      if (!u.path.length){ u.moveTarget = null; u.path = null; }
+    } else if (moveToward(u, u.moveTarget.x, u.moveTarget.y, dt)){ u.moveTarget = null; u.path = null; }
   }
   // 卡住检测：长时间无位移则绕开
   if ((u.moveTarget || u.target) && stuckCheck(u, dt, 8)){
     if (u.moveTarget){ const a = Math.random() * Math.PI * 2; u.moveTarget = { x: u.moveTarget.x + Math.cos(a) * 90, y: u.moveTarget.y + Math.sin(a) * 90 }; }
+    // 被墙边卡住动不了（有路要走、且没有正在打的目标）：往外挪到能走的地方
+    const foe = (u.target && !u.target.dead) ? u.target : null;
+    let inRange = false;
+    if (foe){
+      const fx = foe.x !== undefined ? foe.x : foe.cx, fy = foe.y !== undefined ? foe.y : foe.cy;
+      const reach = u.def.range + (foe.kind === 'building' ? Math.max(foe.w, foe.h) / 2 : foe.def.radius);
+      inRange = dist(u.x, u.y, fx, fy) <= reach;
+    }
+    if (u.moveTarget && !inRange && pointBlocked(u.x, u.y, u.def.radius)){
+      for (let r = 16; r <= 64; r += 16){
+        let freed = false;
+        for (let a = 0; a < 8; a++){
+          const nx = u.x + Math.cos(a * Math.PI / 4) * r, ny = u.y + Math.sin(a * Math.PI / 4) * r;
+          if (!pointBlocked(nx, ny, u.def.radius)){ u.x = nx; u.y = ny; freed = true; break; }
+        }
+        if (freed) break;
+      }
+    }
   }
+  // 被挤进建筑/障碍内部时，挪到最近的空地（防止卡死不动）
+  if (insideSolid(u.x, u.y)){
+    for (let r = 8; r <= 80; r += 8){
+      let freed = false;
+      for (let a = 0; a < 8; a++){
+        const nx = u.x + Math.cos(a * Math.PI / 4) * r, ny = u.y + Math.sin(a * Math.PI / 4) * r;
+        if (!insideSolid(nx, ny)){ u.x = nx; u.y = ny; freed = true; break; }
+      }
+      if (freed) break;
+    }
+  }
+}
+// 单位是否被卡在建筑/障碍物内部（只算严格在内部，贴墙攻击不算）
+function insideSolid(x, y){
+  const t = tileAt(x, y);
+  if (t === T_WATER || t === T_TREE || t === T_ROCK || t === T_CITY) return true;
+  for (const b of buildings){
+    if (x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return true;
+  }
+  return false;
 }
 function updateTurret(b, dt){
   if (b.dead || b.built < 1 || b.type !== 'turret') return;
@@ -688,7 +867,9 @@ function trainUnit(building, type){
   if (building.owner === ENEMY && aiMoney < def.cost) return false;
   if (building.queue.length >= 5) return false;
   if (building.owner === PLAYER) money -= def.cost; else aiMoney -= def.cost;
-  building.queue.push({ type: type, t: 0, total: def.time });
+  // 玩家按难度加速训练（简单 0.8 倍时间），敌方保持原速度
+  const total = building.owner === PLAYER ? def.time * diff().trainMul : def.time;
+  building.queue.push({ type: type, t: 0, total: total });
   updateUI();
   return true;
 }
@@ -706,7 +887,8 @@ function updateProduction(dt){
         const sx = b.cx + (Math.random() - 0.5) * 30, sy = b.y + b.h + 26;
         const u = makeUnit(item.type, b.owner, sx, sy);
         if (u.type === 'harvester'){ u.state = 'toOre'; }
-        else if (b.owner === ENEMY){ u.moveTarget = { x: 160, y: 1080 }; u.attackMove = false; }
+        // 敌方新兵先在自家集结待命，只在进攻波次时才出动（不要没到波次就冲玩家家）
+        else if (b.owner === ENEMY){ u.moveTarget = { x: b.cx + (Math.random() - 0.5) * 160, y: b.y + b.h + 60 + Math.random() * 60 }; u.attackMove = false; }
         if (b.owner === PLAYER){ stats.trained++; sfx.build(); }
       }
     }
@@ -727,13 +909,19 @@ function aiTick(dt){
   const bar = buildings.find(function(b){ return b.owner === ENEMY && b.type === 'barracks' && !b.dead && b.built >= 1; });
   if (fac && aiTanks < 5 && aiMoney >= 300) trainUnit(fac, 'tank');
   else if (bar && aiInf < 9 && aiMoney >= 50) trainUnit(bar, 'infantry');
-  // 进攻波次
+  // 进攻波次（间隔、数量、兵种都按难度走）
   aiWaveTimer -= 1;
   if (aiWaveTimer <= 0){
-    aiWaveTimer = 75; aiWaveNum++;
+    aiWaveTimer = diff().waveInterval; aiWaveNum++;
     const hq = buildings.find(function(b){ return b.owner === PLAYER && b.type === 'hq' && !b.dead; });
     if (hq){
-      const attackers = aiUnits.filter(function(u, i){ return i >= 2; }); // 留 2 个守家
+      let attackers = aiUnits.filter(function(u, i){ return i >= diff().keepDefenders; }); // 留人守家
+      const d = diff();
+      if (d.waveCap){
+        // 简单难度：前面几波限量，第 1 波 3 个、第 2 波 4 个……坦克从第 4 波才出现
+        attackers = attackers.filter(function(u){ return aiWaveNum >= d.tankFromWave || u.type !== 'tank'; });
+        attackers = attackers.slice(0, d.waveCap[Math.min(aiWaveNum - 1, d.waveCap.length - 1)]);
+      }
       for (const u of attackers){ u.moveTarget = { x: hq.cx + (Math.random() - 0.5) * 120, y: hq.cy + (Math.random() - 0.5) * 120 }; u.attackMove = true; u.target = null; }
       if (attackers.length){ showAlert('⚠ 敌军第 ' + aiWaveNum + ' 波进攻来袭！'); sfx.alarm(); }
     }
@@ -952,7 +1140,9 @@ canvas.addEventListener('pointercancel', function(e){
 const minimapSlot = document.getElementById('minimapSection');
 function layoutMinimap(){
   const mobile = window.matchMedia('(max-width: 900px), (pointer: coarse)').matches;
-  if (mobile){
+  // 横屏手机用右侧边栏放小地图（红警手游式），只有竖屏手机才把小地图停靠在画面角落
+  const phoneLandscape = window.matchMedia('(pointer: coarse)').matches && window.innerHeight <= 500 && window.innerWidth > window.innerHeight;
+  if (mobile && !phoneLandscape){
     if (minimap.parentElement !== document.getElementById('gamewrap')){
       document.getElementById('gamewrap').appendChild(minimap);
       minimap.classList.add('mobile-dock');
@@ -1090,6 +1280,40 @@ function drawTerrain(){
         ctx.beginPath(); ctx.arc(px + 13, py + 12, 8, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#4c8a3a';
         ctx.beginPath(); ctx.arc(px + 12, py + 10, 4, 0, Math.PI * 2); ctx.fill();
+      } else if (t === T_ROAD){
+        // 沥青马路：深灰路面 + 车道虚线
+        ctx.fillStyle = '#3a3d42'; ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = '#45484e'; ctx.fillRect(px, py, TILE, 4);
+        ctx.fillStyle = '#c9c9bf';
+        if (h < 0.5){ ctx.fillRect(px + 4, py + 15, 8, 2); ctx.fillRect(px + 20, py + 15, 8, 2); }
+        else { ctx.fillRect(px + 15, py + 4, 2, 8); ctx.fillRect(px + 15, py + 20, 2, 8); }
+        ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.fillRect(px, py + 26, TILE, 6);
+      } else if (t === T_BRIDGE){
+        // 木桥：桥下河水 + 棕色木板 + 两侧护栏
+        ctx.fillStyle = '#1d4e6b'; ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = '#8a6d3b'; ctx.fillRect(px, py + 2, TILE, TILE - 4);
+        ctx.fillStyle = '#a5824a'; ctx.fillRect(px, py + 2, TILE, 3);
+        ctx.strokeStyle = '#5e4a26'; ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++){ ctx.beginPath(); ctx.moveTo(px, py + 6 + i * 7); ctx.lineTo(px + TILE, py + 6 + i * 7); ctx.stroke(); }
+        ctx.fillStyle = '#5e4a26'; ctx.fillRect(px, py, 3, TILE); ctx.fillRect(px + TILE - 3, py, 3, TILE);
+      } else if (t === T_ROCK){
+        // 灰色岩石障碍
+        ctx.fillStyle = ['#4a6b2a', '#456627'][Math.floor(h2 * 2)]; ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = '#6f6f68';
+        ctx.beginPath(); ctx.moveTo(px + 6, py + 26); ctx.lineTo(px + 12, py + 8); ctx.lineTo(px + 22, py + 6); ctx.lineTo(px + 28, py + 20); ctx.lineTo(px + 24, py + 28); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#9a9a92';
+        ctx.beginPath(); ctx.moveTo(px + 12, py + 8); ctx.lineTo(px + 22, py + 6); ctx.lineTo(px + 20, py + 14); ctx.lineTo(px + 13, py + 15); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(px + 4, py + 27, TILE - 8, 3);
+      } else if (t === T_CITY){
+        // 街边楼房：草坪基座 + 带高度感的楼体 + 亮窗
+        ctx.fillStyle = '#3f6125'; ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(px + 6, py + 10, TILE - 8, TILE - 10);
+        ctx.fillStyle = '#7a7d84'; ctx.fillRect(px + 4, py + 4, TILE - 8, TILE - 10);
+        ctx.fillStyle = '#9aa0a8'; ctx.fillRect(px + 4, py + 4, TILE - 8, 6);
+        ctx.fillStyle = '#565a61'; ctx.fillRect(px + 4, py + 4, TILE - 8, 2);
+        ctx.fillStyle = h > 0.3 ? '#ffd94a' : '#2c3e50'; ctx.fillRect(px + 8, py + 15, 5, 6);
+        ctx.fillStyle = h2 > 0.4 ? '#ffd94a' : '#2c3e50'; ctx.fillRect(px + 19, py + 15, 5, 6);
+        ctx.fillStyle = '#c9c9bf'; ctx.fillRect(px + 13, py + 23, 6, 5);
       }
       // 网格感：细细的格线
       ctx.strokeStyle = 'rgba(0,0,0,.10)';
@@ -1363,6 +1587,9 @@ function drawMinimap(){
     const t = terrain[y][x];
     if (t === T_ORE){ mctx.fillStyle = '#f5c542'; mctx.fillRect(x * tw, y * th, tw, th); }
     else if (t === T_WATER){ mctx.fillStyle = '#22597a'; mctx.fillRect(x * tw, y * th, tw, th); }
+    else if (t === T_ROAD){ mctx.fillStyle = '#3a3d42'; mctx.fillRect(x * tw, y * th, tw, th); }
+    else if (t === T_BRIDGE){ mctx.fillStyle = '#8a6d3b'; mctx.fillRect(x * tw, y * th, tw, th); }
+    else if (t === T_ROCK || t === T_CITY){ mctx.fillStyle = '#6f6f68'; mctx.fillRect(x * tw, y * th, tw, th); }
   }
   for (const b of buildings){
     if (b.dead) continue;
@@ -1386,6 +1613,18 @@ function render(){
   drawEffects();
   drawPlacement();
   drawMinimap();
+  drawRain();
+}
+// 雨夜氛围：斜落雨丝（红警2雨夜城市的感觉），可按顶栏按钮开关
+function drawRain(){
+  if (!rain) return;
+  const rt = performance.now() / 1000;
+  ctx.fillStyle = 'rgba(174,194,224,.32)';
+  for (let i = 0; i < 42; i++){
+    const rx = ((i * 173 + rt * 420) % (viewW + 40)) - 20;
+    const ry = ((i * 269 + rt * 700) % (viewH + 40)) - 20;
+    ctx.fillRect(rx, ry, 1.5, 13);
+  }
 }
 
 // ---------- UI ----------
@@ -1468,6 +1707,19 @@ document.getElementById('btnMute').onclick = function(){
   this.textContent = muted ? '🔇 音效关' : '🔊 音效开';
 };
 document.getElementById('btnRestart').onclick = function(){ location.reload(); };
+// 难度选择（开始画面）
+document.querySelectorAll('#diffRow .diffBtn').forEach(function(btn){
+  btn.onclick = function(){
+    difficulty = btn.getAttribute('data-diff');
+    document.querySelectorAll('#diffRow .diffBtn').forEach(function(b){ b.classList.toggle('sel', b === btn); });
+    document.getElementById('diffDesc').textContent = DIFFICULTY[difficulty].desc;
+    sfx.click();
+  };
+});
+document.getElementById('btnRain').onclick = function(){
+  rain = !rain;
+  this.textContent = rain ? '🌧 雨天开' : '🌧 雨天关';
+};
 document.getElementById('btnStart').onclick = function(){
   document.getElementById('titleScreen').style.display = 'none';
   if (gameState === 'playing'){
@@ -1489,7 +1741,7 @@ document.getElementById('btnAgain').onclick = function(){ location.reload(); };
 function startGame(){
   resetGame();
   gameState = 'playing';
-  showAlert('第一波敌军进攻约在 90 秒后到来，先采矿扩军！');
+  showAlert('第一波敌军进攻约在 ' + diff().firstWave + ' 秒后到来，先采矿扩军！');
   sfx.build();
 }
 
@@ -1559,7 +1811,7 @@ function runAutotest(){
       const moneyBefore = money;
       const hv = units.find(function(u){ return u.owner === PLAYER && u.type === 'harvester'; });
       // 加速验证采矿：把采集车放到矿上并完成一次装载
-      const ore = nearestOreTile(400, 900);
+      const ore = nearestOreTile(450, 1350);
       if (hv && ore){ hv.x = ore.x; hv.y = ore.y; hv.oreTile = ore; hv.state = 'harvesting'; hv.stateT = 1.9; }
       autotestLog('harvester_forced', { moneyBefore: moneyBefore });
     } catch (e){ testErrors.push('autotest2:' + e.message); }
@@ -1599,33 +1851,39 @@ function runShotMode(mode){
     setTimeout(function(){ document.title = '截图就绪'; }, 1200);
   } else if (mode === 'mining'){
     const hv = units.find(function(u){ return u.owner === PLAYER && u.type === 'harvester'; });
-    const ore = nearestOreTile(400, 900);
+    const ore = nearestOreTile(450, 1350);
     if (hv && ore){ hv.x = ore.x; hv.y = ore.y; hv.oreTile = ore; hv.state = 'harvesting'; hv.stateT = 1.0; }
     const bar = buildings.find(function(b){ return b.owner === PLAYER && b.type === 'barracks'; });
     if (bar) trainUnit(bar, 'infantry');
     camera.x = 0; camera.y = Math.max(0, MAP_PX_H - viewH);
     setTimeout(function(){ document.title = '截图就绪'; }, 2500);
   } else if (mode === 'battle'){
-    // 中央摆开阵势：玩家坦克 vs 敌军坦克+步兵
+    // 木桥争夺战：玩家坦克 vs 敌军坦克+步兵
     for (let i = 0; i < 4; i++){
-      const t = makeUnit('tank', PLAYER, 850 + (i % 2) * 50, 560 + Math.floor(i / 2) * 50);
-      t.moveTarget = { x: 1000, y: 640 }; t.attackMove = true;
+      const t = makeUnit('tank', PLAYER, 1300 + (i % 2) * 50, 600 + Math.floor(i / 2) * 50);
+      t.moveTarget = { x: 1520, y: 640 }; t.attackMove = true;
     }
     for (let i = 0; i < 3; i++){
-      const t = makeUnit('tank', ENEMY, 1000 + (i % 2) * 50, 600 + Math.floor(i / 2) * 50);
-      t.moveTarget = { x: 880, y: 600 }; t.attackMove = true;
+      const t = makeUnit('tank', ENEMY, 1560 + (i % 2) * 50, 600 + Math.floor(i / 2) * 50);
+      t.moveTarget = { x: 1340, y: 640 }; t.attackMove = true;
     }
     for (let i = 0; i < 4; i++){
-      const s = makeUnit('infantry', ENEMY, 980 + i * 26, 700);
-      s.moveTarget = { x: 880, y: 620 }; s.attackMove = true;
+      const s = makeUnit('infantry', ENEMY, 1540 + i * 26, 700);
+      s.moveTarget = { x: 1340, y: 640 }; s.attackMove = true;
     }
     for (let i = 0; i < 2; i++){
-      const s = makeUnit('infantry', PLAYER, 820 + i * 26, 660);
-      s.moveTarget = { x: 1000, y: 640 }; s.attackMove = true;
+      const s = makeUnit('infantry', PLAYER, 1280 + i * 26, 660);
+      s.moveTarget = { x: 1520, y: 640 }; s.attackMove = true;
     }
-    camera.x = clamp(960 - viewW / 2, 0, MAP_PX_W - viewW);
+    camera.x = clamp(1450 - viewW / 2, 0, MAP_PX_W - viewW);
     camera.y = clamp(640 - viewH / 2, 0, MAP_PX_H - viewH);
     setTimeout(function(){ document.title = '截图就绪'; }, 3500);
+  } else if (mode === 'map'){
+    // 全图总览：缩到最小倍率，镜头居中
+    zoom = 0.6; resizeCanvas();
+    camera.x = clamp(MAP_PX_W / 2 - viewW / 2, 0, MAP_PX_W - viewW);
+    camera.y = clamp(MAP_PX_H / 2 - viewH / 2, 0, MAP_PX_H - viewH);
+    setTimeout(function(){ document.title = '截图就绪'; }, 1500);
   }
 }
 
