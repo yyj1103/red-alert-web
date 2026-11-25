@@ -13,6 +13,7 @@
   #topbar .stat { background:#0a0a0a; border:1px solid #55554e; box-shadow:inset 0 2px 4px rgba(0,0,0,.8); border-radius:3px; padding:3px 9px; flex-shrink:0; }
   #topbar .stat b { color:#ffd94a; }
   #topbar .stat.power-low b { color:#ff5a4e; }
+  #topbar .power-hint { color:#ff5a4e; font-weight:bold; white-space:nowrap; }
   #topbar button { background:linear-gradient(#4a4f57, #2a2d33); color:#f0e6c8; border:2px solid; border-color:#8a8f97 #14161a #14161a #8a8f97; border-radius:3px; padding:4px 10px; cursor:pointer; font-size:14px; flex-shrink:0; }
   #topbar button:hover { background:linear-gradient(#5a6069, #34383f); border-color:#ffd94a; }
   #topbar button:active { border-color:#14161a #8a8f97 #8a8f97 #14161a; }
@@ -133,6 +134,7 @@
     <span class="logo">⚔ 钢铁黎明</span>
     <span class="stat">💰 资金 <b id="money">2000</b></span>
     <span class="stat" id="powerStat">⚡ 电力 <b id="power">0 / 0</b></span>
+    <span class="stat power-hint" id="powerHint" style="display:none">⚠ 电力不足，建造发电站</span>
     <span class="stat">⏱ <b id="clock">00:00</b></span>
     <span class="stat stat-units">🪖 部队 <b id="unitCount">0</b></span>
     <span class="stat">⚠ 下波进攻 <b id="wave">180</b>秒</span>
@@ -217,15 +219,15 @@ const T_GRASS = 0, T_ORE = 1, T_WATER = 2, T_TREE = 3, T_ROCK = 4, T_ROAD = 5, T
 const BUILDINGS = {
   hq:       { name:'指挥总部', cost:0,   power:0,   hp:1600, w:3, h:3, color:'#3a6ea5', dark:'#274b73', desc:'基地核心，被摧毁即战败' },
   power:    { name:'发电站',   cost:150, power:100, hp:400,  w:2, h:2, color:'#c9a227', dark:'#8a6d15', desc:'提供 100 电力' },
-  barracks: { name:'步兵营',   cost:200, power:-25, hp:600,  w:2, h:2, color:'#4a7c59', dark:'#33573d', desc:'训练突击兵' },
-  factory:  { name:'战车工厂', cost:400, power:-40, hp:800,  w:3, h:2, color:'#5b6b7a', dark:'#3d4954', desc:'生产坦克/采集车' },
-  refinery: { name:'精炼厂',   cost:300, power:-20, hp:700,  w:3, h:2, color:'#a5662f', dark:'#7a4a20', desc:'采集车卸矿石' },
-  turret:   { name:'防御炮塔', cost:250, power:-15, hp:350,  w:1, h:1, color:'#7a4a6b', dark:'#55324a', desc:'自动攻击敌军', dmg:20 },
+  barracks: { name:'步兵营',   cost:200, power:-10, hp:600,  w:2, h:2, color:'#4a7c59', dark:'#33573d', desc:'训练突击兵' },
+  factory:  { name:'战车工厂', cost:400, power:-25, hp:800,  w:3, h:2, color:'#5b6b7a', dark:'#3d4954', desc:'生产坦克/采集车' },
+  refinery: { name:'精炼厂',   cost:300, power:-10, hp:700,  w:3, h:2, color:'#a5662f', dark:'#7a4a20', desc:'采集车卸矿石' },
+  turret:   { name:'防御炮塔', cost:250, power:-10, hp:350,  w:1, h:1, color:'#7a4a6b', dark:'#55324a', desc:'自动攻击敌军', dmg:20 },
 };
 // 单位定义（原创名称）
 const UNITS = {
-  infantry:  { name:'突击兵', cost:50,  hp:60,  speed:78, range:130, dmg:8,  rate:0.8, time:3,  radius:7,  color:'#2f7de1', dark:'#1c4f92', trainAt:'barracks' },
-  tank:      { name:'铁牛坦克', cost:300, hp:320, speed:48, range:165, dmg:26, rate:1.4, time:8,  radius:12, color:'#2a5db0', dark:'#1d4178', trainAt:'factory' },
+  infantry:  { name:'突击兵', cost:50,  hp:60,  speed:78, range:130, dmg:8,  rate:0.8, time:2.25,  radius:7,  color:'#2f7de1', dark:'#1c4f92', trainAt:'barracks' },
+  tank:      { name:'铁牛坦克', cost:300, hp:320, speed:48, range:165, dmg:26, rate:1.4, time:6,  radius:12, color:'#2a5db0', dark:'#1d4178', trainAt:'factory' },
   harvester: { name:'采集车', cost:500, hp:220, speed:42, range:0,   dmg:0,  rate:0,   time:10, radius:12, color:'#d8a028', dark:'#96700f', trainAt:'factory' },
 };
 const ORE_VALUE = 150;      // 每车矿石价值
@@ -880,7 +882,7 @@ function trainUnit(building, type, quiet){
   if (!building || building.dead || building.built < 1) return false;
   if (building.owner === PLAYER && money < def.cost){ if (!quiet){ toast('资金不足！'); sfx.error(); } return false; }
   if (building.owner === ENEMY && aiMoney < def.cost) return false;
-  if (building.queue.length >= 5) return false;
+  if (building.queue.length >= 8) return false;
   if (building.owner === PLAYER) money -= def.cost; else aiMoney -= def.cost;
   // 玩家按难度加速训练（简单 0.8 倍时间），敌方保持原速度
   const total = building.owner === PLAYER ? def.time * diff().trainMul : def.time;
@@ -907,11 +909,11 @@ function updateProduction(dt){
         if (b.owner === PLAYER){ stats.trained++; sfx.build(); }
       }
     }
-    // 玩家兵营/战车工厂自动生产（默认开）：队列空了就补一个，造完再补；
+    // 玩家兵营/战车工厂自动生产（默认开）：队列不满 8 就补满，造完再补；
     // 钱不够就等着，不扣成负数；步兵/坦克全场各最多 40 个（含排队），防卡死
     if (b.owner === PLAYER && autoProd[b.type]){
       const autoType = b.type === 'barracks' ? 'infantry' : (b.type === 'factory' ? 'tank' : null);
-      if (autoType && b.queue.length === 0 && countPlayerUnits(autoType) < AUTO_UNIT_CAP){
+      if (autoType && b.queue.length < 8 && countPlayerUnits(autoType) < AUTO_UNIT_CAP){
         trainUnit(b, autoType, true);
       }
     }
@@ -1732,6 +1734,7 @@ function updateUI(){
   document.getElementById('money').textContent = Math.floor(money);
   document.getElementById('power').textContent = powerUsed + ' / ' + powerProvided;
   document.getElementById('powerStat').className = 'stat' + (powerUsed > powerProvided ? ' power-low' : '');
+  document.getElementById('powerHint').style.display = (powerUsed > powerProvided && gameState === 'playing') ? '' : 'none';
   document.getElementById('clock').textContent = fmtTime(gameTime);
   document.getElementById('wave').textContent = gameState === 'playing' ? Math.max(0, Math.ceil(aiWaveTimer)) : '—';
   document.getElementById('unitCount').textContent = units.filter(function(u){ return u.owner === PLAYER && !u.dead; }).length;
