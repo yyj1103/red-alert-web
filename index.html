@@ -35,6 +35,15 @@
   .btn .sub { display:block; font-size:11px; color:#9fb3c8; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .queuebar { grid-column:1 / -1; height:5px; background:#0d1117; border-radius:3px; margin:1px 0 3px; overflow:hidden; }
   .queuebar > div { height:100%; background:#f5c542; width:0%; }
+  /* 训练栏生产信息：倒计时文字 + 进度条（单独一行，手机端也显示） */
+  .queueinfo { margin:2px 0 4px; }
+  .queueinfo .qtext { font-size:12px; color:#ffd94a; margin-bottom:2px; }
+  .queueinfo .qbar { height:5px; background:#0d1117; border-radius:3px; overflow:hidden; }
+  .queueinfo .qbar > div { height:100%; background:#f5c542; width:0%; }
+  /* 自动生产开关：开=绿，关=灰 */
+  .btn.autotoggle.on { border-color:#7ee787; }
+  .btn.autotoggle.on .cost { color:#7ee787; }
+  .btn.autotoggle.off .cost { color:#888; }
   #info { font-size:13px; line-height:1.6; color:#cfe3ff; }
   #minimap { display:block; width:240px; height:132px; border:2px solid #8a6d15; background:#20261a; cursor:pointer; touch-action:none; }
   /* 手机端小地图：JS 把它移到游戏画面右下角 */
@@ -73,13 +82,14 @@
     #main { flex-direction:column; }
     #gamewrap { flex:1; min-height:0; }
     #hint { font-size:12px; left:6px; bottom:6px; max-width:62%; }
-    #sidebar { width:100%; height:172px; flex-shrink:0; border-left:none; border-top:2px solid #8a6d15; padding:6px 8px; overflow-y:auto; }
+    #sidebar { width:100%; height:204px; flex-shrink:0; border-left:none; border-top:2px solid #8a6d15; padding:6px 8px; overflow-y:auto; }
     #sidebar h3 { font-size:14px; margin:4px 0 3px; }
     #buildBtns, #trainBtns { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
     #buildBtns::-webkit-scrollbar, #trainBtns::-webkit-scrollbar { display:none; }
     #buildBtns .btn, #trainBtns .btn { flex:0 0 auto; width:auto; min-width:124px; min-height:52px; padding:8px 10px; font-size:15px; }
     #buildBtns .btn .sub, #trainBtns .btn .sub { font-size:12px; }
     #sidebar .queuebar { display:none; }
+    #trainInfo .qtext { font-size:13px; }
     #info { font-size:13px; }
     #minimapSection { display:none; }
     .overlay h1 { font-size:34px; letter-spacing:5px; }
@@ -170,6 +180,7 @@
       <div id="buildBtns"></div>
       <h3>🎖 训练部队</h3>
       <div id="trainBtns"></div>
+      <div id="trainInfo"></div>
       <h3>ℹ 选中信息</h3>
       <div id="info">未选中任何单位。点选己方单位或建筑查看详情。</div>
       <div id="minimapSection">
@@ -259,11 +270,14 @@ let placement = null;       // { type, x, y, valid }
 let mouse = { x: 0, y: 0, wx: 0, wy: 0, down: false, dragging: false, sx: 0, sy: 0 };
 let keys = {};
 let stats = { trained: 0, harvested: 0, kills: 0, shotsFired: 0 };
+// 自动生产开关（兵营自动出突击兵，战车工厂自动出坦克，默认都开）
+let autoProd = { barracks: true, factory: true };
+const AUTO_UNIT_CAP = 40;   // 全场步兵/坦克各最多 40 个（含已排队），防卡死
 let testErrors = [];
 window.__autotest = null;
 // 调试图柄（供自动化验证读取实时状态）
 window.__game = {
-  get state(){ return { gameState: gameState, difficulty: difficulty, money: Math.floor(money), units: units.length, buildings: buildings.length, gameTime: +gameTime.toFixed(1), aiWaveNum: aiWaveNum, aiWaveTimer: +aiWaveTimer.toFixed(1), shotsFired: stats.shotsFired, kills: stats.kills, harvestedTrips: stats.harvested, selected: selected.length, selectedBuilding: selectedBuilding ? selectedBuilding.type : null, camera: { x: Math.round(camera.x), y: Math.round(camera.y) }, zoom: +zoom.toFixed(2), viewW: viewW, viewH: viewH }; },
+  get state(){ return { gameState: gameState, difficulty: difficulty, money: Math.floor(money), units: units.length, buildings: buildings.length, gameTime: +gameTime.toFixed(1), aiWaveNum: aiWaveNum, aiWaveTimer: +aiWaveTimer.toFixed(1), shotsFired: stats.shotsFired, kills: stats.kills, harvestedTrips: stats.harvested, selected: selected.length, selectedBuilding: selectedBuilding ? selectedBuilding.type : null, camera: { x: Math.round(camera.x), y: Math.round(camera.y) }, zoom: +zoom.toFixed(2), viewW: viewW, viewH: viewH, autoProd: { barracks: autoProd.barracks, factory: autoProd.factory }, prod: buildings.filter(function(b){ return b.owner === PLAYER && (b.type === 'barracks' || b.type === 'factory') && !b.dead; }).map(function(b){ return { type: b.type, queue: b.queue.length, cur: b.queue.length ? b.queue[0].type : null, remain: b.queue.length ? +Math.max(0, (b.queue[0].total - b.queue[0].t) / powerRatio()).toFixed(2) : null }; }) }; },
 };
 window.__debug = {
   // 快进：按 0.05 秒步长直接推进游戏逻辑（仅供自动化验证用）
@@ -481,6 +495,7 @@ function resetGame(){
   gameTime = 0; aiTimer = 0; aiWaveTimer = diff().firstWave; aiWaveNum = 0; aiTrickle = 0;
   selected = []; selectedBuilding = null; placement = null;
   stats = { trained: 0, harvested: 0, kills: 0, shotsFired: 0 };
+  autoProd = { barracks: true, factory: true };
   spawnBase(PLAYER);
   spawnBase(ENEMY);
   camera.x = 0; camera.y = Math.max(0, MAP_PX_H - viewH);
@@ -860,10 +875,10 @@ function placeBuilding(type, tx, ty){
   updatePower(); updateUI();
   return true;
 }
-function trainUnit(building, type){
+function trainUnit(building, type, quiet){
   const def = UNITS[type];
   if (!building || building.dead || building.built < 1) return false;
-  if (building.owner === PLAYER && money < def.cost){ toast('资金不足！'); sfx.error(); return false; }
+  if (building.owner === PLAYER && money < def.cost){ if (!quiet){ toast('资金不足！'); sfx.error(); } return false; }
   if (building.owner === ENEMY && aiMoney < def.cost) return false;
   if (building.queue.length >= 5) return false;
   if (building.owner === PLAYER) money -= def.cost; else aiMoney -= def.cost;
@@ -892,7 +907,22 @@ function updateProduction(dt){
         if (b.owner === PLAYER){ stats.trained++; sfx.build(); }
       }
     }
+    // 玩家兵营/战车工厂自动生产（默认开）：队列空了就补一个，造完再补；
+    // 钱不够就等着，不扣成负数；步兵/坦克全场各最多 40 个（含排队），防卡死
+    if (b.owner === PLAYER && autoProd[b.type]){
+      const autoType = b.type === 'barracks' ? 'infantry' : (b.type === 'factory' ? 'tank' : null);
+      if (autoType && b.queue.length === 0 && countPlayerUnits(autoType) < AUTO_UNIT_CAP){
+        trainUnit(b, autoType, true);
+      }
+    }
   }
+}
+// 玩家某兵种现存数量（活着的 + 排队中的）
+function countPlayerUnits(type){
+  let n = 0;
+  for (const u of units) if (u.owner === PLAYER && !u.dead && u.type === type) n++;
+  for (const b of buildings) if (b.owner === PLAYER && !b.dead) for (const item of b.queue) if (item.type === type) n++;
+  return n;
 }
 
 // ---------- 敌方 AI ----------
@@ -1436,6 +1466,26 @@ function drawBuilding(b){
     ctx.fillStyle = b.hp / b.maxHp > 0.5 ? '#7ee787' : (b.hp / b.maxHp > 0.25 ? '#ffd94a' : '#ff7b72');
     ctx.fillRect(px, py - 7, b.w * (b.hp / b.maxHp), 4);
   }
+  // 生产进度（兵营/战车工厂头顶）：进度条 + 兵种名和剩余秒数；空闲时显示“空闲”
+  if ((b.type === 'barracks' || b.type === 'factory') && b.built >= 1){
+    const barW = Math.max(b.w, 64);
+    const bx = cx - barW / 2;
+    if (b.queue.length){
+      const item = b.queue[0];
+      const remain = Math.max(0, (item.total - item.t) / powerRatio());
+      const pct = Math.min(1, item.t / item.total);
+      const label = UNITS[item.type].name + ' ' + remain.toFixed(1) + '秒';
+      ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(bx - 1, py - 20, barW + 2, 6);
+      ctx.fillStyle = '#ffd94a'; ctx.fillRect(bx, py - 19, barW * pct, 4);
+      ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#000'; ctx.fillText(label, cx + 1, py - 23);
+      ctx.fillStyle = '#fff'; ctx.fillText(label, cx, py - 24);
+    } else if (b.owner === PLAYER){
+      ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#000'; ctx.fillText('空闲', cx + 1, py - 11);
+      ctx.fillStyle = '#9fb3c8'; ctx.fillText('空闲', cx, py - 12);
+    }
+  }
   // 选中：金色框 + 四角括号
   if (selectedBuilding === b){
     ctx.strokeStyle = '#ffd94a'; ctx.lineWidth = 2;
@@ -1646,25 +1696,37 @@ function buildUI(){
   });
   const tb = document.getElementById('trainBtns');
   tb.innerHTML = '';
+  // 自动生产开关放最前面（手机端横向滚动时一眼可见，不用往右翻）
+  [['barracks', 'infantry'], ['factory', 'tank']].forEach(function(pair){
+    const bt = pair[0], ut = pair[1];
+    const has = buildings.some(function(b){ return b.owner === PLAYER && b.type === bt && !b.dead && b.built >= 1; });
+    const tbtn = document.createElement('button');
+    tbtn.className = 'btn autotoggle ' + (autoProd[bt] ? 'on' : 'off');
+    tbtn.innerHTML = BUILDINGS[bt].name + '自动生产<span class="cost">' + (autoProd[bt] ? '开' : '关') + '</span><span class="sub">' + (autoProd[bt] ? '自动生产' + UNITS[ut].name : '已关闭 · 点一下开启') + '</span>';
+    tbtn.disabled = !has;
+    tbtn.onclick = function(){ autoProd[bt] = !autoProd[bt]; sfx.click(); updateUI(); };
+    tb.appendChild(tbtn);
+  });
   Object.keys(UNITS).forEach(function(type){
     const def = UNITS[type];
     const prod = buildings.find(function(b){ return b.owner === PLAYER && b.type === def.trainAt && !b.dead && b.built >= 1; });
-    const prodQ = buildings.filter(function(b){ return b.owner === PLAYER && b.type === def.trainAt && !b.dead; })
-      .reduce(function(n, b){ return n + b.queue.length; }, 0);
     const btn = document.createElement('button');
     btn.className = 'btn';
-    btn.innerHTML = def.name + '<span class="cost">$' + def.cost + '</span><span class="sub">' + (prod ? BUILDINGS[def.trainAt].name + ' · 队列 ' + prodQ : '需要' + BUILDINGS[def.trainAt].name) + '</span>';
+    btn.innerHTML = def.name + '<span class="cost">$' + def.cost + '</span><span class="sub">' + (prod ? BUILDINGS[def.trainAt].name + ' · 队列 ' + buildings.filter(function(b){ return b.owner === PLAYER && b.type === def.trainAt && !b.dead; }).reduce(function(n, b){ return n + b.queue.length; }, 0) : '需要' + BUILDINGS[def.trainAt].name) + '</span>';
     btn.disabled = !prod || money < def.cost;
     btn.onclick = function(){ if (prod && trainUnit(prod, type)) sfx.click(); };
     tb.appendChild(btn);
-    if (prod && prod.queue.length){
-      const bar = document.createElement('div');
-      bar.className = 'queuebar';
-      const item = prod.queue[0];
-      bar.innerHTML = '<div style="width:' + Math.round(item.t / item.total * 100) + '%"></div>';
-      tb.appendChild(bar);
-    }
   });
+  // 生产倒计时（单独一行，不随按钮横向滚动，手机上也一眼可见）
+  const ti = document.getElementById('trainInfo');
+  let tiHtml = '';
+  for (const b of buildings){
+    if (b.owner !== PLAYER || b.dead || b.built < 1 || !b.queue.length) continue;
+    const item = b.queue[0];
+    const remain = Math.max(0, (item.total - item.t) / powerRatio());
+    tiHtml += '<div class="queueinfo"><div class="qtext">' + UNITS[item.type].name + ' · 剩余 ' + remain.toFixed(1) + '秒 · ' + Math.round(item.t / item.total * 100) + '%（队列 ' + b.queue.length + '）</div><div class="qbar"><div style="width:' + Math.round(item.t / item.total * 100) + '%"></div></div></div>';
+  }
+  ti.innerHTML = tiHtml;
 }
 function updateUI(){
   document.getElementById('money').textContent = Math.floor(money);
@@ -1681,7 +1743,13 @@ function updateUI(){
     if (b.built < 1) html += '<br>建造中 ' + Math.round(b.built * 100) + '%';
     if (b.queue.length){
       const item = b.queue[0];
-      html += '<br>生产中：' + UNITS[item.type].name + ' ' + Math.round(item.t / item.total * 100) + '%（队列 ' + b.queue.length + '）';
+      const remain = Math.max(0, (item.total - item.t) / powerRatio());
+      html += '<br>生产中：' + UNITS[item.type].name + ' · 剩余 ' + remain.toFixed(1) + '秒 · ' + Math.round(item.t / item.total * 100) + '%（队列 ' + b.queue.length + '）';
+    } else if ((b.type === 'barracks' || b.type === 'factory') && b.owner === PLAYER && b.built >= 1){
+      html += '<br>生产：空闲';
+    }
+    if ((b.type === 'barracks' || b.type === 'factory') && b.owner === PLAYER && b.built >= 1){
+      html += '<br>自动生产：' + (autoProd[b.type] ? '开（自动出兵）' : '关（手动训练）');
     }
     info.innerHTML = html;
   } else if (selected.length === 1){
